@@ -6,215 +6,567 @@ import streamlit as st
 import sys
 import os
 from datetime import datetime
+from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.security_agent.main import SecurityAgent
 
 # Config
-st.set_page_config(page_title="CyberShield | Security Scanner", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="CyberShield | Security Operations", page_icon="🔐", layout="wide")
 
-# Custom CSS - Clean Professional Theme
+# Custom CSS - Corporate Security Console
 st.markdown("""
 <style>
-    /* Main Background - Clean Slate */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+        --page: #f4f7fb;
+        --surface: #ffffff;
+        --surface-muted: #f8fafc;
+        --ink: #111827;
+        --muted: #667085;
+        --line: #d9e2ec;
+        --primary: #155eef;
+        --primary-dark: #0f3f9e;
+        --button: #182230;
+        --button-hover: #0f766e;
+        --button-border: #344054;
+        --teal: #0f766e;
+        --amber: #b45309;
+        --danger: #b42318;
+    }
+
     .stApp { 
-        background: linear-gradient(180deg, #1e293b 0%, #0f172a 50%, #020617 100%);
+        background:
+            linear-gradient(180deg, rgba(21, 94, 239, 0.08) 0%, rgba(244, 247, 251, 0) 320px),
+            var(--page);
         min-height: 100vh;
+        color: var(--ink);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .block-container {
+        max-width: 1240px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    * {
+        letter-spacing: 0 !important;
     }
     
     /* Sidebar */
     [data-testid="stSidebar"] { 
-        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+        background: #0b1220 !important;
         border-right: 1px solid rgba(255,255,255,0.08);
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
         color: #f8fafc !important;
     }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] li {
+        color: #e2e8f0 !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stMetric"] {
+        background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(37, 99, 235, 0.16)) !important;
+        border: 1px solid rgba(125, 211, 252, 0.34) !important;
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16) !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+        color: #bae6fd !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+    }
+
+    .brand-shell {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 18px 45px rgba(16, 24, 40, 0.08);
+        margin-bottom: 1.25rem;
+    }
+
+    .brand-row {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .brand-kicker {
+        color: var(--primary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        text-transform: uppercase;
+    }
+
+    .brand-title {
+        color: var(--ink);
+        font-size: 2.05rem;
+        font-weight: 800;
+        line-height: 1.08;
+        margin: 0;
+    }
+
+    .brand-copy {
+        color: var(--muted);
+        font-size: 0.98rem;
+        line-height: 1.6;
+        max-width: 760px;
+        margin: 0.65rem 0 0;
+    }
+
+    .status-pill {
+        align-items: center;
+        background: #ecfdf3;
+        border: 1px solid #abefc6;
+        border-radius: 999px;
+        color: #067647;
+        display: inline-flex;
+        font-size: 0.8rem;
+        font-weight: 700;
+        gap: 0.45rem;
+        padding: 0.45rem 0.75rem;
+        white-space: nowrap;
+    }
+
+    .status-dot {
+        background: #17b26a;
+        border-radius: 999px;
+        display: inline-block;
+        height: 0.5rem;
+        width: 0.5rem;
+    }
+
+    .section-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(16, 24, 40, 0.05);
+        margin: 0.25rem 0 1.25rem;
+        padding: 1.25rem;
+    }
+
+    .section-eyebrow {
+        color: var(--primary);
+        font-size: 0.76rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+        text-transform: uppercase;
+    }
+
+    .section-card h3 {
+        margin-bottom: 0.25rem !important;
+    }
+
+    .trust-card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-left: 5px solid #64748b;
+        border-radius: 8px;
+        box-shadow: 0 12px 28px rgba(16, 24, 40, 0.06);
+        margin: 1rem 0;
+        padding: 1.1rem 1.2rem;
+    }
+
+    .trust-card.trusted {
+        background: #ecfdf3;
+        border-color: #abefc6;
+        border-left-color: #17b26a;
+    }
+
+    .trust-card.review {
+        background: #fffaeb;
+        border-color: #fedf89;
+        border-left-color: #f79009;
+    }
+
+    .trust-card.untrusted {
+        background: #fef3f2;
+        border-color: #fecdca;
+        border-left-color: #f04438;
+    }
+
+    .trust-label {
+        color: #475467;
+        font-size: 0.76rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .trust-title {
+        color: var(--ink);
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+    }
+
+    .trust-copy {
+        color: #475467;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        margin: 0;
+    }
+
+    .sidebar-brand {
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .sidebar-brand strong {
+        color: #ffffff;
+        display: block;
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .sidebar-brand span {
+        color: #bae6fd !important;
+        font-weight: 600;
+    }
+
+    .sidebar-card {
+        background:
+            linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(20, 184, 166, 0.12)),
+            rgba(255,255,255,0.08);
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        border-radius: 8px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+        margin: 0.75rem 0;
+        padding: 0.9rem;
+        position: relative;
+    }
+
+    .sidebar-card::before {
+        background: #2dd4bf;
+        border-radius: 999px;
+        content: "";
+        height: calc(100% - 1.4rem);
+        left: 0.55rem;
+        position: absolute;
+        top: 0.7rem;
+        width: 3px;
+    }
+
+    .sidebar-card strong {
+        color: #ffffff;
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+        padding-left: 0.85rem;
+    }
+
+    .sidebar-card p {
+        color: #f8fafc !important;
+        font-size: 0.86rem;
+        font-weight: 500;
+        line-height: 1.55;
+        margin: 0;
+        padding-left: 0.85rem;
+    }
     
     /* Input Fields */
     .stTextInput > div > div > input {
-        background: rgba(30, 41, 59, 0.8) !important;
-        border: 1px solid rgba(71, 85, 105, 0.6) !important;
-        color: #f1f5f9 !important;
-        border-radius: 10px !important;
+        background: #ffffff !important;
+        border: 1px solid #cfd8e3 !important;
+        color: var(--ink) !important;
+        border-radius: 8px !important;
         padding: 0.875rem 1rem !important;
         font-size: 0.95rem !important;
     }
     .stTextInput > div > div > input:focus {
-        border-color: #60a5fa !important;
-        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15) !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(21, 94, 239, 0.14) !important;
     }
     .stTextInput > div > div > input::placeholder {
-        color: #64748b !important;
+        color: #98a2b3 !important;
     }
     
     /* Select Box */
     .stSelectbox > div > div > div {
-        background: rgba(30, 41, 59, 0.8) !important;
-        border: 1px solid rgba(71, 85, 105, 0.6) !important;
-        color: #f1f5f9 !important;
-        border-radius: 10px !important;
+        background: #ffffff !important;
+        border: 1px solid #cfd8e3 !important;
+        color: var(--ink) !important;
+        border-radius: 8px !important;
         padding: 0.5rem !important;
     }
     
-    /* Buttons - Primary Blue */
-    .stButton > button {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        padding: 0.75rem 1.5rem !important;
-        font-size: 0.95rem !important;
-        letter-spacing: 0.02em !important;
-        transition: all 0.2s ease !important;
+    /* Buttons */
+    @keyframes button-sheen {
+        0% {
+            transform: translateX(-120%) skewX(-18deg);
+        }
+        55%, 100% {
+            transform: translateX(240%) skewX(-18deg);
+        }
     }
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%) !important;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
+
+    .stButton > button,
+    .stDownloadButton > button {
+        align-items: center !important;
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 38%),
+            linear-gradient(135deg, var(--button) 0%, #101828 100%) !important;
+        border: 1px solid var(--button-border) !important;
+        border-radius: 7px !important;
+        box-shadow:
+            0 1px 0 rgba(255,255,255,0.24) inset,
+            0 10px 22px rgba(16, 24, 40, 0.2) !important;
+        color: #ffffff !important;
+        display: inline-flex !important;
+        font-weight: 700 !important;
+        justify-content: center !important;
+        min-height: 2.75rem !important;
+        min-width: 11rem !important;
+        overflow: hidden !important;
+        padding: 0.75rem 1.5rem !important;
+        position: relative !important;
+        font-size: 0.95rem !important;
+        transition:
+            background 180ms ease,
+            border-color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease !important;
+    }
+
+    .stButton > button *,
+    .stDownloadButton > button * {
+        color: #ffffff !important;
+        position: relative;
+        z-index: 1;
+    }
+
+    .stButton > button::before,
+    .stDownloadButton > button::before {
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent);
+        content: "";
+        height: 160%;
+        left: -45%;
+        pointer-events: none;
+        position: absolute;
+        top: -30%;
+        width: 42%;
+    }
+
+    .stButton > button:hover,
+    .stDownloadButton > button:hover {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0) 40%),
+            linear-gradient(135deg, var(--button-hover) 0%, #115e59 100%) !important;
+        border-color: #0f766e !important;
+        color: #ffffff !important;
+        box-shadow:
+            0 1px 0 rgba(255,255,255,0.28) inset,
+            0 14px 28px rgba(15, 118, 110, 0.24) !important;
+        transform: translateY(-2px);
+    }
+
+    .stButton > button:hover::before,
+    .stDownloadButton > button:hover::before {
+        animation: button-sheen 950ms ease;
+    }
+
+    .stButton > button:active,
+    .stDownloadButton > button:active {
+        box-shadow:
+            0 1px 0 rgba(255,255,255,0.18) inset,
+            0 6px 14px rgba(16, 24, 40, 0.2) !important;
+        transform: translateY(0);
+    }
+
+    .stButton > button:focus-visible,
+    .stDownloadButton > button:focus-visible {
+        outline: 3px solid rgba(15, 118, 110, 0.22) !important;
+        outline-offset: 2px !important;
+    }
+
+    [data-testid="stBaseButton-secondary"] {
+        background:
+            linear-gradient(135deg, var(--button) 0%, #101828 100%) !important;
+        border: 1px solid var(--button-border) !important;
+        box-shadow: 0 10px 22px rgba(16, 24, 40, 0.2) !important;
+        color: #ffffff !important;
+    }
+
+    [data-testid="stBaseButton-secondary"]:hover {
+        background:
+            linear-gradient(135deg, var(--button-hover) 0%, #115e59 100%) !important;
+        border-color: #0f766e !important;
+        color: #ffffff !important;
+        box-shadow: 0 14px 28px rgba(15, 118, 110, 0.24) !important;
+    }
+
+    [data-testid="stBaseButton-secondary"] *,
+    [data-testid="stBaseButton-secondary"]:hover * {
+        color: #ffffff !important;
     }
     
     /* Tabs */
     .stTabs [data-testid="stTabList"] {
-        background: rgba(30, 41, 59, 0.5) !important;
-        border-radius: 12px !important;
+        background: #eaf0f7 !important;
+        border-radius: 8px !important;
         padding: 6px !important;
         gap: 4px !important;
-        border: 1px solid rgba(71, 85, 105, 0.4) !important;
+        border: 1px solid var(--line) !important;
     }
     .stTabs [data-testid="stTab"] {
         background: transparent !important;
-        border-radius: 8px !important;
-        color: #94a3b8 !important;
+        border-radius: 6px !important;
+        color: #475467 !important;
         padding: 0.6rem 1rem !important;
-        font-weight: 500 !important;
+        font-weight: 700 !important;
     }
     .stTabs [data-testid="stTab"]:hover {
-        color: #e2e8f0 !important;
-        background: rgba(59, 130, 246, 0.1) !important;
+        color: var(--ink) !important;
+        background: rgba(255,255,255,0.7) !important;
     }
     .stTabs [data-testid="stTab"][aria-selected="true"] {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-        color: #ffffff !important;
-        font-weight: 600 !important;
+        background: #ffffff !important;
+        color: var(--primary) !important;
+        border: 1px solid #d0d5dd !important;
+        box-shadow: 0 3px 8px rgba(16, 24, 40, 0.08) !important;
     }
     
     /* Metrics Cards */
     [data-testid="stMetric"] {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
-        border-radius: 14px !important;
+        background: #ffffff !important;
+        border-radius: 8px !important;
         padding: 1.25rem !important;
-        border: 1px solid rgba(71, 85, 105, 0.4) !important;
-        backdrop-filter: blur(10px);
+        border: 1px solid var(--line) !important;
+        box-shadow: 0 8px 20px rgba(16, 24, 40, 0.05);
     }
     [data-testid="stMetricValue"] { 
-        color: #60a5fa !important; 
+        color: var(--ink) !important; 
         font-size: 1.5rem !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
     }
     [data-testid="stMetricLabel"] { 
-        color: #94a3b8 !important;
+        color: var(--muted) !important;
         font-size: 0.8rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
     }
     
     /* Headers */
     h1 { 
-        color: #f8fafc !important; 
+        color: var(--ink) !important; 
         font-size: 1.75rem !important; 
-        font-weight: 700 !important;
-        letter-spacing: -0.02em;
+        font-weight: 800 !important;
     }
     h2 { 
-        color: #f8fafc !important; 
+        color: var(--ink) !important; 
         font-size: 1.35rem !important; 
-        font-weight: 600 !important;
+        font-weight: 750 !important;
     }
     h3 { 
-        color: #f1f5f9 !important; 
+        color: var(--ink) !important; 
         font-size: 1.05rem !important; 
-        font-weight: 600 !important;
+        font-weight: 750 !important;
     }
     p { 
-        color: #cbd5e1 !important;
+        color: var(--muted) !important;
         line-height: 1.6;
+    }
+
+    label, .stMarkdown, .stTextInput label, .stSelectbox label, .stMultiSelect label, .stFileUploader label {
+        color: var(--ink) !important;
     }
     
     /* Dividers */
     hr { 
         border: none !important;
         height: 1px !important;
-        background: linear-gradient(90deg, transparent, rgba(71, 85, 105, 0.5), transparent) !important;
+        background: var(--line) !important;
         margin: 1.5rem 0 !important;
     }
     
     /* Expanders */
     .streamlit-expanderHeader {
-        background: rgba(30, 41, 59, 0.6) !important;
-        border-radius: 10px !important;
-        color: #e2e8f0 !important;
-        border: 1px solid rgba(71, 85, 105, 0.3) !important;
+        background: #ffffff !important;
+        border-radius: 8px !important;
+        color: var(--ink) !important;
+        border: 1px solid var(--line) !important;
         padding: 0.75rem 1rem !important;
     }
     .streamlit-expanderHeader:hover {
-        background: rgba(30, 41, 59, 0.8) !important;
+        background: var(--surface-muted) !important;
     }
     
     /* Alert Boxes */
     .stSuccess { 
-        background: rgba(34, 197, 94, 0.1) !important;
-        border: 1px solid rgba(34, 197, 94, 0.3) !important;
-        border-left: 4px solid #22c55e !important;
-        border-radius: 10px !important;
+        background: #ecfdf3 !important;
+        border: 1px solid #abefc6 !important;
+        border-left: 4px solid #17b26a !important;
+        border-radius: 8px !important;
         padding: 1rem !important;
     }
     .stWarning { 
-        background: rgba(245, 158, 11, 0.1) !important;
-        border: 1px solid rgba(245, 158, 11, 0.3) !important;
-        border-left: 4px solid #f59e0b !important;
-        border-radius: 10px !important;
+        background: #fffaeb !important;
+        border: 1px solid #fedf89 !important;
+        border-left: 4px solid var(--amber) !important;
+        border-radius: 8px !important;
         padding: 1rem !important;
     }
     .stError { 
-        background: rgba(239, 68, 68, 0.1) !important;
-        border: 1px solid rgba(239, 68, 68, 0.3) !important;
-        border-left: 4px solid #ef4444 !important;
-        border-radius: 10px !important;
+        background: #fef3f2 !important;
+        border: 1px solid #fecdca !important;
+        border-left: 4px solid var(--danger) !important;
+        border-radius: 8px !important;
         padding: 1rem !important;
     }
     .stInfo { 
-        background: rgba(59, 130, 246, 0.1) !important;
-        border: 1px solid rgba(59, 130, 246, 0.3) !important;
-        border-left: 4px solid #3b82f6 !important;
-        border-radius: 10px !important;
+        background: #eff8ff !important;
+        border: 1px solid #b2ddff !important;
+        border-left: 4px solid var(--primary) !important;
+        border-radius: 8px !important;
         padding: 1rem !important;
     }
     
     /* Multiselect */
     .stMultiSelect > div > div > div {
-        background: rgba(30, 41, 59, 0.8) !important;
-        border: 1px solid rgba(71, 85, 105, 0.6) !important;
-        border-radius: 10px !important;
+        background: #ffffff !important;
+        border: 1px solid #cfd8e3 !important;
+        border-radius: 8px !important;
     }
     
     /* File Uploader */
     [data-testid="stFileUploader"] {
-        background: rgba(30, 41, 59, 0.5) !important;
-        border-radius: 12px !important;
-        border: 2px dashed rgba(71, 85, 105, 0.5) !important;
+        background: #ffffff !important;
+        border-radius: 8px !important;
+        border: 1px dashed #98a2b3 !important;
         padding: 1.5rem !important;
     }
     
     /* Checkbox */
     .stCheckbox > label {
-        color: #cbd5e1 !important;
+        color: var(--ink) !important;
     }
     
     /* Spinner */
     .stSpinner > div {
-        border-top-color: #3b82f6 !important;
+        border-top-color: var(--primary) !important;
+    }
+
+    .footer-note {
+        color: #667085;
+        font-size: 0.78rem;
+    }
+
+    @media (max-width: 768px) {
+        .brand-row {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+        .brand-title {
+            font-size: 1.65rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -225,28 +577,149 @@ for key in ['api_reports', 'image_reports', 'website_reports', 'micro_reports', 
     if key not in st.session_state:
         st.session_state[key] = []
 
+total_scans = (
+    len(st.session_state.website_reports)
+    + len(st.session_state.api_reports)
+    + len(st.session_state.image_reports)
+    + len(st.session_state.micro_reports)
+)
+
+st.sidebar.markdown("""
+<div class="sidebar-brand">
+    <strong>CyberShield</strong>
+    <span>Security Operations Suite</span>
+</div>
+<div class="sidebar-card">
+    <strong>Coverage</strong>
+    <p>Web, API, container, and Kubernetes security assessment in one console.</p>
+</div>
+<div class="sidebar-card">
+    <strong>Operating Mode</strong>
+    <p>Assessment workspace for security teams and platform engineers.</p>
+</div>
+""", unsafe_allow_html=True)
+st.sidebar.metric("Scans This Session", total_scans)
+st.sidebar.caption("Reports are stored in the current Streamlit session.")
+
+
+def render_section(eyebrow: str, title: str, copy: str) -> None:
+    st.markdown(
+        f"""
+        <div class="section-card">
+            <div class="section-eyebrow">{eyebrow}</div>
+            <h3>{title}</h3>
+            <p>{copy}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def assess_website_trust(website_url: str, findings: list, check_ssl: bool, check_headers: bool) -> dict:
+    parsed = urlparse(website_url if "://" in website_url else f"https://{website_url}")
+    hostname = parsed.hostname or ""
+    severity_score = {
+        "CRITICAL": 45,
+        "HIGH": 30,
+        "MEDIUM": 14,
+        "LOW": 5,
+        "INFO": 0,
+    }
+    score = 100
+    reasons = []
+
+    if parsed.scheme != "https":
+        score -= 35
+        reasons.append("Website is not using HTTPS.")
+    elif check_ssl:
+        reasons.append("HTTPS is enabled and SSL/TLS was included in the assessment.")
+
+    if not hostname or "." not in hostname:
+        score -= 20
+        reasons.append("The target does not look like a complete public domain.")
+
+    if check_headers:
+        header_findings = [f for f in findings if f.get("category") == "Security Headers"]
+        if header_findings:
+            reasons.append("Important browser security headers are missing.")
+    else:
+        score -= 10
+        reasons.append("Security header checks were not included.")
+
+    for finding in findings:
+        score -= severity_score.get(finding.get("severity"), 0)
+
+    score = max(0, min(100, score))
+    if score >= 80:
+        verdict = "Trusted"
+        css_class = "trusted"
+        summary = "No major trust blockers were detected in this scan."
+    elif score >= 50:
+        verdict = "Needs Review"
+        css_class = "review"
+        summary = "The site has security signals that should be reviewed before trusting it."
+    else:
+        verdict = "Not Trusted"
+        css_class = "untrusted"
+        summary = "The site failed key trust checks and should be treated as risky."
+
+    return {
+        "verdict": verdict,
+        "score": score,
+        "class": css_class,
+        "summary": summary,
+        "reasons": reasons[:3],
+    }
+
+
+def render_trust_card(trust: dict) -> None:
+    reasons = " ".join(f"{reason}" for reason in trust.get("reasons", []))
+    st.markdown(
+        f"""
+        <div class="trust-card {trust['class']}">
+            <div class="trust-label">Website Trust Verdict</div>
+            <div class="trust-title">{trust['verdict']} - {trust['score']}/100</div>
+            <p class="trust-copy">{trust['summary']} {reasons}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # ============================================================
 # HEADER
 # ============================================================
-col_header1, col_header2 = st.columns([3, 1])
-with col_header1:
-    st.markdown("## 🛡️ CyberShield")
-    st.markdown("*Enterprise Security Analysis Platform*")
-with col_header2:
-    st.markdown("<div style='text-align:right;padding-top:0.5rem;'><span style='background:linear-gradient(135deg,#3b82f6,#1d4ed8);padding:0.25rem 0.75rem;border-radius:20px;font-size:0.75rem;color:#fff;'>v1.0.0</span></div>", unsafe_allow_html=True)
+st.markdown("""
+<section class="brand-shell">
+    <div class="brand-row">
+        <div>
+            <div class="brand-kicker">Enterprise Security Analysis</div>
+            <h1 class="brand-title">CyberShield Security Operations</h1>
+            <p class="brand-copy">
+                A unified assessment console for website exposure, API posture,
+                container image risk, and Kubernetes configuration review.
+            </p>
+        </div>
+        <div class="status-pill"><span class="status-dot"></span> Workspace Active</div>
+    </div>
+</section>
+""", unsafe_allow_html=True)
 
-st.markdown("---")
+metric_1, metric_2, metric_3, metric_4 = st.columns(4)
+metric_1.metric("Total Scans", total_scans)
+metric_2.metric("Assessment Areas", "4")
+metric_3.metric("Report Format", "Markdown")
+metric_4.metric("Engine", "Trivy")
 
 # ============================================================
 # NAVIGATION TABS
 # ============================================================
 tab_names = [
-    "🌐 Website",
-    "🔗 API",
-    "🐳 Images",
-    "☸️ Micro",
-    "📊 Reports",
-    "📜 History"
+    "Website",
+    "API",
+    "Images",
+    "Microservices",
+    "Reports",
+    "History"
 ]
 tabs = st.tabs(tab_names)
 
@@ -254,9 +727,11 @@ tabs = st.tabs(tab_names)
 # TAB 1: WEBSITE SCANNER
 # ============================================================
 with tabs[0]:
-    st.markdown("### 🌐 Website Security Scanner")
-    st.markdown("*Scan websites for vulnerabilities, misconfigurations, and security headers*")
-    st.markdown("---")
+    render_section(
+        "External Attack Surface",
+        "Website Security Scanner",
+        "Review public website posture, TLS hygiene, security headers, and common exposure signals.",
+    )
     
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -264,15 +739,17 @@ with tabs[0]:
     with col2:
         scan_depth = st.selectbox("Scan Depth", ["Quick", "Standard", "Deep"], index=1, key="ws_depth")
     
-    col_opt1, col_opt2, col_opt3 = st.columns(3)
+    col_opt1, col_opt2, col_opt3, col_opt4 = st.columns(4)
     with col_opt1:
         check_ssl = st.checkbox("SSL/TLS Analysis", value=True, key="ws_ssl")
     with col_opt2:
         check_headers = st.checkbox("Security Headers", value=True, key="ws_headers")
     with col_opt3:
         check_ports = st.checkbox("Port Scan", value=False, key="ws_ports")
+    with col_opt4:
+        check_trust = st.checkbox("Trust Verdict", value=True, key="ws_trust")
     
-    if st.button("🔍 Scan Website", key="ws_btn"):
+    if st.button("Scan Website", key="ws_btn"):
         if website_url:
             with st.spinner("Scanning website..."):
                 website_result = {
@@ -299,6 +776,14 @@ with tabs[0]:
                     })
                     website_result['risks'].append('Missing security headers may allow XSS and clickjacking')
                     website_result['mitigations'].append('Configure web server to send security headers')
+
+                if check_trust:
+                    website_result['trust'] = assess_website_trust(
+                        website_url,
+                        website_result['findings'],
+                        check_ssl,
+                        check_headers,
+                    )
                 
                 st.session_state.website_reports.append({
                     'url': website_url, 'result': website_result,
@@ -310,9 +795,12 @@ with tabs[0]:
                 })
             
             st.markdown("---")
-            st.markdown("### 📋 Scan Results")
+            st.markdown("### Scan Results")
             
             findings = website_result.get('findings', [])
+            if website_result.get('trust'):
+                render_trust_card(website_result['trust'])
+
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Critical", sum(1 for f in findings if f['severity'] == 'CRITICAL'), delta_color="inverse")
             c2.metric("High", sum(1 for f in findings if f['severity'] == 'HIGH'), delta_color="inverse")
@@ -321,20 +809,20 @@ with tabs[0]:
             
             risks = website_result.get('risks', [])
             if risks:
-                st.markdown("#### ⚠️ Identified Risks")
+                st.markdown("#### Identified Risks")
                 for risk in risks:
                     st.warning(f"• {risk}")
                 
-                st.markdown("#### 🛡️ Mitigations")
+                st.markdown("#### Mitigations")
                 for mit in website_result.get('mitigations', []):
-                    st.success(f"✅ {mit}")
+                    st.success(mit)
             
             if findings:
-                with st.expander(f"📄 View All {len(findings)} Findings"):
+                with st.expander(f"View All {len(findings)} Findings"):
                     for f in findings:
                         sev = {'CRITICAL': '🔴', 'HIGH': '🟠', 'MEDIUM': '🟡', 'LOW': '🟢'}.get(f['severity'], '⚪')
                         st.markdown(f"**{sev} {f['severity']}** — {f['category']}")
-                        st.markdown(f"*{f['issue']}* → {f['mitigation']}")
+                        st.markdown(f"*{f['issue']}* - {f['mitigation']}")
                         st.markdown("---")
         else:
             st.warning("Enter a website URL")
@@ -343,9 +831,11 @@ with tabs[0]:
 # TAB 2: API SCANNER
 # ============================================================
 with tabs[1]:
-    st.markdown("### 🔗 API Security Scanner")
-    st.markdown("*Analyze REST APIs for security vulnerabilities*")
-    st.markdown("---")
+    render_section(
+        "Application Interfaces",
+        "API Security Scanner",
+        "Test REST endpoints for response risk, defensive headers, sensitive data exposure, and auth posture.",
+    )
     
     col1, col2 = st.columns([4, 1])
     with col1:
@@ -359,7 +849,7 @@ with tabs[1]:
     with col_auth2:
         auth_value = st.text_input("Auth Value", placeholder="Token or key", key="api_auth_val", type="password")
     
-    if st.button("🚀 Scan API", key="api_btn"):
+    if st.button("Scan API", key="api_btn"):
         if api_url:
             with st.spinner("Analyzing API..."):
                 headers = None
@@ -390,15 +880,15 @@ with tabs[1]:
                 resolutions = api_result.get('resolutions', [])
                 
                 if risks:
-                    st.markdown("#### ⚠️ Security Risks")
+                    st.markdown("#### Security Risks")
                     for risk in risks:
                         st.warning(f"• {risk}")
                     
-                    st.markdown("#### 🛡️ Mitigations")
+                    st.markdown("#### Mitigations")
                     for res in resolutions:
-                        st.success(f"✅ {res}")
+                        st.success(res)
                 else:
-                    st.success("✅ No Security Issues Detected")
+                    st.success("No security issues detected")
                 
                 st.metric("Status Code", api_result.get('status_code', 'N/A'))
         else:
@@ -408,9 +898,11 @@ with tabs[1]:
 # TAB 3: CONTAINER IMAGES
 # ============================================================
 with tabs[2]:
-    st.markdown("### 🐳 Container Image Scanner")
-    st.markdown("*Scan Docker/OCI images for vulnerabilities using Trivy*")
-    st.markdown("---")
+    render_section(
+        "Software Supply Chain",
+        "Container Image Scanner",
+        "Scan Docker and OCI images for known vulnerabilities with Trivy-powered assessment output.",
+    )
     
     col_qs1, col_qs2 = st.columns([2, 1])
     with col_qs1:
@@ -424,7 +916,7 @@ with tabs[2]:
     if quick_images:
         img_input = quick_images[0]
     
-    if st.button("🔍 Scan Image", key="img_btn"):
+    if st.button("Scan Image", key="img_btn"):
         if img_input:
             with st.spinner("Scanning image..."):
                 result = agent.analyze_image(img_input)
@@ -450,24 +942,24 @@ with tabs[2]:
                 l = sum(1 for v in vulns if v['severity'] == 'LOW')
                 
                 if c or h:
-                    st.error(f"🚨 Critical: {c} | High: {h} | Medium: {m} | Low: {l}")
+                    st.error(f"Critical: {c} | High: {h} | Medium: {m} | Low: {l}")
                 elif m:
-                    st.warning(f"⚠️ Medium: {m} | Low: {l}")
+                    st.warning(f"Medium: {m} | Low: {l}")
                 else:
-                    st.success("✅ No Vulnerabilities Found")
+                    st.success("No vulnerabilities found")
                 
                 st.metric("Total", len(vulns))
                 
                 if c or h:
-                    st.markdown("#### ⚠️ Risks")
+                    st.markdown("#### Risks")
                     st.markdown(f"• {c} critical and {h} high severity vulnerabilities")
-                    st.markdown("#### 🛡️ Mitigations")
+                    st.markdown("#### Mitigations")
                     st.markdown("• Update base image to latest stable version")
                     st.markdown("• Apply security patches regularly")
                     st.markdown("• Use minimal base images (alpine, distroless)")
                 
                 if vulns:
-                    with st.expander(f"📄 View Top 10"):
+                    with st.expander("View Top 10 Vulnerabilities"):
                         for v in vulns[:10]:
                             sev = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}.get(v['severity'], "⚪")
                             st.markdown(f"**{sev} {v['id']}** ({v['severity']})")
@@ -480,9 +972,11 @@ with tabs[2]:
 # TAB 4: MICROSERVICES
 # ============================================================
 with tabs[3]:
-    st.markdown("### ☸️ Microservices Scanner")
-    st.markdown("*Scan Kubernetes clusters and microservices*")
-    st.markdown("---")
+    render_section(
+        "Platform Security",
+        "Microservices Scanner",
+        "Assess Kubernetes manifests, RBAC configuration, network policies, and workload hardening.",
+    )
     
     col1, col2 = st.columns(2)
     with col1:
@@ -493,7 +987,7 @@ with tabs[3]:
     st.markdown("**Or upload Kubernetes manifests:**")
     uploaded_files = st.file_uploader("YAML files", type=['yaml', 'yml'], accept_multiple_files=True, key="k8s_files")
     
-    if st.button("☸️ Scan Microservices", key="k8s_btn"):
+    if st.button("Scan Microservices", key="k8s_btn"):
         with st.spinner("Analyzing microservices..."):
             micro_result = {'findings': [], 'risks': [], 'mitigations': []}
             
@@ -541,29 +1035,31 @@ with tabs[3]:
         
         risks = micro_result.get('risks', [])
         if risks:
-            st.markdown("#### ⚠️ Identified Risks")
+            st.markdown("#### Identified Risks")
             for risk in risks:
                 st.warning(f"• {risk}")
         
         mitigations = micro_result.get('mitigations', [])
         if mitigations:
-            st.markdown("#### 🛡️ Recommended Mitigations")
+            st.markdown("#### Recommended Mitigations")
             for mit in mitigations:
-                st.success(f"✅ {mit}")
+                st.success(mit)
 
 # ============================================================
 # TAB 5: REPORTS
 # ============================================================
 with tabs[4]:
-    st.markdown("### 📊 Security Reports")
-    st.markdown("*Generate comprehensive security analysis reports*")
-    st.markdown("---")
+    render_section(
+        "Executive Reporting",
+        "Security Reports",
+        "Generate a consolidated security report from the scans performed during this workspace session.",
+    )
     
     has_data = any([st.session_state.api_reports, st.session_state.image_reports,
                     st.session_state.website_reports, st.session_state.micro_reports])
     
     if not has_data:
-        st.info("📭 No scan data. Run some scans first!")
+        st.info("No scan data yet. Run an assessment to build the report.")
     else:
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Websites", len(st.session_state.website_reports))
@@ -575,46 +1071,51 @@ with tabs[4]:
         
         st.markdown("---")
         
-        if st.button("📄 Generate Full Report"):
+        if st.button("Generate Full Report"):
             report = f"# CyberShield Security Analysis Report\n\n*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n---\n\n"
             
             for wr in st.session_state.website_reports:
-                report += f"## 🌐 {wr['url']}\n"
+                report += f"## Website: {wr['url']}\n"
+                trust = wr['result'].get('trust')
+                if trust:
+                    report += f"- Trust Verdict: {trust['verdict']} ({trust['score']}/100)\n"
                 for f in wr['result'].get('findings', []):
-                    report += f"- [{f['severity']}] {f['category']}: {f['issue']} → {f['mitigation']}\n"
+                    report += f"- [{f['severity']}] {f['category']}: {f['issue']} - {f['mitigation']}\n"
                 report += "\n"
             
             for ar in st.session_state.api_reports:
-                report += f"## 🔗 {ar['url']}\n"
+                report += f"## API: {ar['url']}\n"
                 for r in ar['result'].get('risks', []):
                     report += f"- Risk: {r}\n"
                 report += "\n"
             
             for ir in st.session_state.image_reports:
-                report += f"## 🐳 {ir['image']}\nVulns: {len(ir['result'].get('vulnerabilities', []))}\n\n"
+                report += f"## Image: {ir['image']}\nVulns: {len(ir['result'].get('vulnerabilities', []))}\n\n"
             
-            st.markdown("### 📋 Generated Report")
+            st.markdown("### Generated Report")
             st.markdown(report)
             
-            st.download_button("💾 Download Report", report,
+            st.download_button("Download Report", report,
                 f"cybershield_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md", "text/markdown")
 
 # ============================================================
 # TAB 6: HISTORY
 # ============================================================
 with tabs[5]:
-    st.markdown("### 📜 Analysis History")
-    st.markdown("*View past security scans*")
-    st.markdown("---")
+    render_section(
+        "Audit Trail",
+        "Analysis History",
+        "Review the assessments completed in this session and revisit their targets or finding counts.",
+    )
     
     if not st.session_state.analysis_history:
-        st.info("📭 No history yet.")
+        st.info("No history yet.")
     else:
         for entry in reversed(st.session_state.analysis_history):
             ts = entry['timestamp'][:19].replace('T', ' ')
             scan_type = entry['type'].replace('_', ' ').title()
             
-            with st.expander(f"🕐 {ts} — {scan_type}"):
+            with st.expander(f"{ts} - {scan_type}"):
                 if entry['type'] == 'website_scan':
                     st.markdown(f"**URL:** {entry['url']}")
                 elif entry['type'] == 'api_scan':
@@ -630,7 +1131,7 @@ with tabs[5]:
 st.markdown("---")
 col_f1, col_f2, col_f3 = st.columns(3)
 with col_f1:
-    st.markdown("<small style='color:#64748b'>🛡️ CyberShield v1.0.0</small>", unsafe_allow_html=True)
+    st.markdown("<span class='footer-note'>CyberShield v1.0.0</span>", unsafe_allow_html=True)
 with col_f2:
     st.markdown("<small style='color:#64748b'>Enterprise Security Scanner</small>", unsafe_allow_html=True)
 with col_f3:
