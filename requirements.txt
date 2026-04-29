@@ -1,0 +1,3 @@
+requests
+# Trivy is required for image scanning and must be installed as a CLI tool.
+# Without Homebrew on macOS, run: sh install_trivy.sh
