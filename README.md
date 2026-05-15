@@ -1,4 +1,4 @@
-# Security Analysis Agent
+## Security Analysis Agent
 
 This agent analyzes security threats in APIs and container images, including base images, and generates comprehensive reports with risks and resolutions.
 
