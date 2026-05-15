@@ -616,8 +616,25 @@ def render_section(eyebrow: str, title: str, copy: str) -> None:
 
 
 def assess_website_trust(website_url: str, findings: list, check_ssl: bool, check_headers: bool) -> dict:
+    """
+    Assess website trust score based on security findings.
+    
+    Scoring breakdown:
+    - Start with 100 points
+    - HTTPS validation: -35 if not HTTPS
+    - Domain validation: -20 if invalid domain
+    - Security headers: -20 if headers checked and missing
+    - Security findings: deduct based on severity (CRITICAL: -45, HIGH: -30, MEDIUM: -14, LOW: -5)
+    
+    Final score determines verdict:
+    - 80+: Trusted
+    - 50-79: Needs Review
+    - <50: Not Trusted
+    """
     parsed = urlparse(website_url if "://" in website_url else f"https://{website_url}")
     hostname = parsed.hostname or ""
+    
+    # Severity penalties for findings
     severity_score = {
         "CRITICAL": 45,
         "HIGH": 30,
@@ -625,61 +642,92 @@ def assess_website_trust(website_url: str, findings: list, check_ssl: bool, chec
         "LOW": 5,
         "INFO": 0,
     }
+    
     score = 100
     reasons = []
-
+    
+    # ===== CHECK 1: HTTPS/TLS Protocol =====
     if parsed.scheme != "https":
         score -= 35
-        reasons.append("Website is not using HTTPS.")
-    elif check_ssl:
-        reasons.append("HTTPS is enabled and SSL/TLS was included in the assessment.")
-
+        reasons.append("❌ Website is not using HTTPS - unencrypted communication detected.")
+    else:
+        reasons.append("✓ HTTPS is enabled - secure connection verified.")
+    
+    # ===== CHECK 2: Valid Domain Name =====
     if not hostname or "." not in hostname:
         score -= 20
-        reasons.append("The target does not look like a complete public domain.")
-
+        reasons.append("❌ Invalid domain - the target does not appear to be a public domain.")
+    else:
+        reasons.append(f"✓ Valid domain detected: {hostname}")
+    
+    # ===== CHECK 3: Security Headers =====
     if check_headers:
         header_findings = [f for f in findings if f.get("category") == "Security Headers"]
         if header_findings:
-            reasons.append("Important browser security headers are missing.")
+            # Deduct 20 points for missing security headers
+            score -= 20
+            missing_headers = len(header_findings)
+            reasons.append(f"❌ Missing {missing_headers} critical security headers (XSS, clickjacking, MIME-type protection).")
+        else:
+            reasons.append("✓ Required security headers are present.")
     else:
-        score -= 10
-        reasons.append("Security header checks were not included.")
-
+        reasons.append("⊘ Security header checks were not performed.")
+    
+    # ===== CHECK 4: Security Vulnerabilities =====
+    # Deduct points based on severity of all findings
+    critical_count = sum(1 for f in findings if f.get("severity") == "CRITICAL")
+    high_count = sum(1 for f in findings if f.get("severity") == "HIGH")
+    medium_count = sum(1 for f in findings if f.get("severity") == "MEDIUM")
+    low_count = sum(1 for f in findings if f.get("severity") == "LOW")
+    
+    total_vuln_deduction = 0
     for finding in findings:
-        score -= severity_score.get(finding.get("severity"), 0)
-
+        total_vuln_deduction += severity_score.get(finding.get("severity"), 0)
+    
+    score -= total_vuln_deduction
+    
+    if critical_count > 0 or high_count > 0:
+        reasons.append(f"❌ Detected {critical_count} CRITICAL and {high_count} HIGH severity vulnerabilities.")
+    elif medium_count > 0:
+        reasons.append(f"⚠ Found {medium_count} MEDIUM severity issues that should be addressed.")
+    
+    # Ensure score stays in valid range
     score = max(0, min(100, score))
+    
+    # ===== DETERMINE VERDICT =====
     if score >= 80:
         verdict = "Trusted"
         css_class = "trusted"
-        summary = "No major trust blockers were detected in this scan."
+        summary = "✓ No major trust blockers detected. Site appears to be secure."
     elif score >= 50:
         verdict = "Needs Review"
         css_class = "review"
-        summary = "The site has security signals that should be reviewed before trusting it."
+        summary = "⚠ The site has security issues that should be reviewed before trusting."
     else:
         verdict = "Not Trusted"
         css_class = "untrusted"
-        summary = "The site failed key trust checks and should be treated as risky."
-
+        summary = "✗ The site failed critical trust checks. Treat as potentially risky."
+    
     return {
         "verdict": verdict,
         "score": score,
         "class": css_class,
         "summary": summary,
-        "reasons": reasons[:3],
+        "reasons": reasons[:5],  # Return up to 5 reasons
     }
 
 
 def render_trust_card(trust: dict) -> None:
-    reasons = " ".join(f"{reason}" for reason in trust.get("reasons", []))
+    reasons = "<br>".join(f"<li style='margin: 0.35rem 0;'>{reason}</li>" for reason in trust.get("reasons", []))
     st.markdown(
         f"""
         <div class="trust-card {trust['class']}">
             <div class="trust-label">Website Trust Verdict</div>
             <div class="trust-title">{trust['verdict']} - {trust['score']}/100</div>
-            <p class="trust-copy">{trust['summary']} {reasons}</p>
+            <p class="trust-copy">{trust['summary']}</p>
+            <ul style="margin: 0.75rem 0 0 0; padding-left: 1.2rem; color: #475467; font-size: 0.9rem;">
+                {reasons}
+            </ul>
         </div>
         """,
         unsafe_allow_html=True,
