@@ -676,9 +676,6 @@ st.markdown("""
 
     .risk-ring {
         align-items: center;
-        background:
-            radial-gradient(circle at center, #ffffff 57%, transparent 58%),
-            conic-gradient(var(--danger) calc(var(--score) * 1%), #e4e7ec 0);
         border-radius: 999px;
         color: var(--ink);
         display: inline-flex;
@@ -727,7 +724,6 @@ st.markdown("""
         background: linear-gradient(90deg, #155eef, #0f766e);
         border-radius: 999px;
         height: 100%;
-        width: var(--width);
     }
 
     .action-list {
@@ -1111,7 +1107,7 @@ def render_workspace_insights() -> None:
     if trust:
         trust_copy = f"Latest website verdict: {trust['verdict']} at {trust['score']}/100."
 
-    bars = ""
+    bar_parts = []
     for label, count in [
         ("Critical", severity_counts["CRITICAL"] + vuln_counts["CRITICAL"]),
         ("High", severity_counts["HIGH"] + vuln_counts["HIGH"]),
@@ -1119,22 +1115,25 @@ def render_workspace_insights() -> None:
         ("Low", severity_counts["LOW"] + vuln_counts["LOW"]),
     ]:
         width = max(4, int((count / max_count) * 100)) if count else 0
-        bars += f"""
-            <div class="mini-bar-row">
-                <div class="mini-bar-label">{label}</div>
-                <div class="mini-bar-track"><div class="mini-bar-fill" style="--width:{width}%"></div></div>
-                <div class="mini-bar-value">{count}</div>
-            </div>
-        """
+        bar_parts.append(
+            '<div class="mini-bar-row">'
+            f'<div class="mini-bar-label">{label}</div>'
+            f'<div class="mini-bar-track"><div class="mini-bar-fill" style="width:{width}%"></div></div>'
+            f'<div class="mini-bar-value">{count}</div>'
+            '</div>'
+        )
+    bars = "".join(bar_parts)
 
     actions = "".join(
-        f"""
-        <div class="action-item">
-            <span class="action-rank">{index}</span>
-            <div class="action-text">{escape(action)}</div>
-        </div>
-        """
+        '<div class="action-item">'
+        f'<span class="action-rank">{index}</span>'
+        f'<div class="action-text">{escape(action)}</div>'
+        '</div>'
         for index, action in enumerate(top_actions, start=1)
+    )
+    risk_background = (
+        "radial-gradient(circle at center, #ffffff 57%, transparent 58%), "
+        f"conic-gradient(var(--danger) {summary['risk_score']}%, #e4e7ec 0)"
     )
 
     st.markdown(
@@ -1143,7 +1142,7 @@ def render_workspace_insights() -> None:
             <div class="insight-panel">
                 <div class="insight-label">Workspace Risk</div>
                 <div class="risk-score">
-                    <div class="risk-ring" style="--score:{summary['risk_score']}">{summary['risk_score']}</div>
+                    <div class="risk-ring" style="background:{risk_background}">{summary['risk_score']}</div>
                     <p class="risk-summary">{escape(trust_copy)} {summary['api_risks']} API risk notes detected this session.</p>
                 </div>
             </div>
