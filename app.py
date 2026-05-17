@@ -5,7 +5,9 @@ Professional Security Scanner UI
 import streamlit as st
 import sys
 import os
+from collections import Counter
 from datetime import datetime
+from html import escape
 from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -212,6 +214,89 @@ st.markdown("""
         font-size: 0.9rem;
         line-height: 1.55;
         margin: 0;
+    }
+
+    @keyframes bot-pop-in {
+        0% {
+            opacity: 0;
+            transform: translateY(18px) scale(0.96);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .bot-popup {
+        animation: bot-pop-in 420ms ease both;
+        background: #ffffff;
+        border: 1px solid #cfd8e3;
+        border-radius: 8px;
+        bottom: 1.25rem;
+        box-shadow: 0 24px 60px rgba(16, 24, 40, 0.24);
+        max-width: 340px;
+        overflow: hidden;
+        position: fixed;
+        right: 1.25rem;
+        width: min(340px, calc(100vw - 2rem));
+        z-index: 9999;
+    }
+
+    .bot-popup summary {
+        align-items: center;
+        background: linear-gradient(135deg, #182230 0%, #0f766e 100%);
+        color: #ffffff;
+        cursor: pointer;
+        display: flex;
+        font-size: 0.92rem;
+        font-weight: 800;
+        justify-content: space-between;
+        list-style: none;
+        padding: 0.85rem 1rem;
+    }
+
+    .bot-popup summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .bot-popup summary::after {
+        color: rgba(255,255,255,0.82);
+        content: "click to collapse";
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .bot-popup:not([open]) summary::after {
+        content: "open";
+    }
+
+    .bot-popup-body {
+        padding: 1rem;
+    }
+
+    .bot-popup-title {
+        color: var(--ink);
+        font-size: 1rem;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+    }
+
+    .bot-popup-copy {
+        color: #475467;
+        font-size: 0.86rem;
+        line-height: 1.55;
+        margin: 0 0 0.8rem;
+    }
+
+    .bot-popup-hint {
+        background: #ecfdf3;
+        border: 1px solid #abefc6;
+        border-radius: 7px;
+        color: #065f46;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.65rem 0.75rem;
     }
 
     .sidebar-brand {
@@ -559,6 +644,200 @@ st.markdown("""
         font-size: 0.78rem;
     }
 
+    .insight-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin: 1rem 0 1.25rem;
+    }
+
+    .insight-panel {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 10px 28px rgba(16, 24, 40, 0.06);
+        min-height: 10.5rem;
+        padding: 1rem;
+    }
+
+    .insight-label {
+        color: #667085;
+        font-size: 0.74rem;
+        font-weight: 800;
+        margin-bottom: 0.45rem;
+        text-transform: uppercase;
+    }
+
+    .risk-score {
+        align-items: center;
+        display: flex;
+        gap: 0.9rem;
+    }
+
+    .risk-ring {
+        align-items: center;
+        background:
+            radial-gradient(circle at center, #ffffff 57%, transparent 58%),
+            conic-gradient(var(--danger) calc(var(--score) * 1%), #e4e7ec 0);
+        border-radius: 999px;
+        color: var(--ink);
+        display: inline-flex;
+        flex: 0 0 auto;
+        font-size: 1.25rem;
+        font-weight: 800;
+        height: 5.5rem;
+        justify-content: center;
+        width: 5.5rem;
+    }
+
+    .risk-summary {
+        color: #475467;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .mini-bars {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .mini-bar-row {
+        align-items: center;
+        display: grid;
+        gap: 0.55rem;
+        grid-template-columns: 4.4rem 1fr 2rem;
+    }
+
+    .mini-bar-label,
+    .mini-bar-value {
+        color: #475467;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .mini-bar-track {
+        background: #eef2f6;
+        border-radius: 999px;
+        height: 0.5rem;
+        overflow: hidden;
+    }
+
+    .mini-bar-fill {
+        background: linear-gradient(90deg, #155eef, #0f766e);
+        border-radius: 999px;
+        height: 100%;
+        width: var(--width);
+    }
+
+    .action-list {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.15rem;
+    }
+
+    .action-item {
+        align-items: flex-start;
+        border: 1px solid #e4e7ec;
+        border-radius: 7px;
+        display: flex;
+        gap: 0.55rem;
+        padding: 0.6rem 0.7rem;
+    }
+
+    .action-rank {
+        align-items: center;
+        background: #eff8ff;
+        border-radius: 999px;
+        color: #175cd3;
+        display: inline-flex;
+        flex: 0 0 auto;
+        font-size: 0.74rem;
+        font-weight: 800;
+        height: 1.35rem;
+        justify-content: center;
+        width: 1.35rem;
+    }
+
+    .action-text {
+        color: #344054;
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .finding-row {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin: 0.6rem 0;
+        padding: 0.85rem 0.95rem;
+    }
+
+    .finding-row strong {
+        color: var(--ink);
+    }
+
+    .severity-badge {
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.72rem;
+        font-weight: 800;
+        margin-right: 0.45rem;
+        padding: 0.18rem 0.52rem;
+    }
+
+    .severity-critical {
+        background: #fef3f2;
+        color: #b42318;
+    }
+
+    .severity-high {
+        background: #fff4ed;
+        color: #b93815;
+    }
+
+    .severity-medium {
+        background: #fffaeb;
+        color: #b54708;
+    }
+
+    .severity-low {
+        background: #ecfdf3;
+        color: #067647;
+    }
+
+    .bot-message {
+        border-radius: 8px;
+        margin: 0.65rem 0;
+        padding: 0.8rem 0.95rem;
+    }
+
+    .bot-message.user {
+        background: #eff8ff;
+        border: 1px solid #b2ddff;
+    }
+
+    .bot-message.assistant {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        box-shadow: 0 8px 20px rgba(16, 24, 40, 0.05);
+    }
+
+    .bot-message-label {
+        color: #475467;
+        font-size: 0.72rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .bot-message-text {
+        color: #344054;
+        font-size: 0.92rem;
+        line-height: 1.55;
+        margin: 0;
+    }
+
     @media (max-width: 768px) {
         .brand-row {
             align-items: flex-start;
@@ -567,13 +846,21 @@ st.markdown("""
         .brand-title {
             font-size: 1.65rem;
         }
+        .bot-popup {
+            bottom: 0.8rem;
+            right: 0.8rem;
+            width: calc(100vw - 1.6rem);
+        }
+        .insight-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Initialize
 agent = SecurityAgent()
-for key in ['api_reports', 'image_reports', 'website_reports', 'micro_reports', 'analysis_history']:
+for key in ['api_reports', 'image_reports', 'website_reports', 'micro_reports', 'analysis_history', 'bot_messages']:
     if key not in st.session_state:
         st.session_state[key] = []
 
@@ -673,13 +960,309 @@ def assess_website_trust(website_url: str, findings: list, check_ssl: bool, chec
 
 
 def render_trust_card(trust: dict) -> None:
-    reasons = " ".join(f"{reason}" for reason in trust.get("reasons", []))
+    reasons = " ".join(escape(reason) for reason in trust.get("reasons", []))
     st.markdown(
         f"""
         <div class="trust-card {trust['class']}">
             <div class="trust-label">Website Trust Verdict</div>
             <div class="trust-title">{trust['verdict']} - {trust['score']}/100</div>
             <p class="trust-copy">{trust['summary']} {reasons}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def severity_badge(severity: str) -> str:
+    normalized = severity.lower()
+    return f'<span class="severity-badge severity-{normalized}">{escape(severity)}</span>'
+
+
+def render_finding_row(severity: str, title: str, detail: str) -> None:
+    st.markdown(
+        f"""
+        <div class="finding-row">
+            {severity_badge(severity)}
+            <strong>{escape(title)}</strong>
+            <p>{escape(detail)}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def summarize_security_workspace() -> dict:
+    website_findings = [
+        finding
+        for report in st.session_state.website_reports
+        for finding in report.get('result', {}).get('findings', [])
+    ]
+    image_vulns = [
+        vuln
+        for report in st.session_state.image_reports
+        for vuln in report.get('result', {}).get('vulnerabilities', [])
+    ]
+    micro_findings = [
+        finding
+        for report in st.session_state.micro_reports
+        for finding in report.get('result', {}).get('findings', [])
+    ]
+    api_risks = [
+        risk
+        for report in st.session_state.api_reports
+        for risk in report.get('result', {}).get('risks', [])
+    ]
+    all_findings = website_findings + micro_findings
+    severity_counts = {
+        severity: sum(1 for finding in all_findings if finding.get('severity') == severity)
+        for severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    }
+    vulnerability_counts = {
+        severity: sum(1 for vuln in image_vulns if vuln.get('severity') == severity)
+        for severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    }
+    category_counts = Counter(finding.get("category", "General") for finding in all_findings)
+    weighted_risk = (
+        severity_counts["CRITICAL"] * 35
+        + severity_counts["HIGH"] * 22
+        + severity_counts["MEDIUM"] * 10
+        + severity_counts["LOW"] * 3
+        + vulnerability_counts["CRITICAL"] * 18
+        + vulnerability_counts["HIGH"] * 10
+        + vulnerability_counts["MEDIUM"] * 4
+        + len(api_risks) * 8
+    )
+    risk_score = min(100, weighted_risk)
+    latest_trust = None
+    if st.session_state.website_reports:
+        latest_trust = st.session_state.website_reports[-1].get("result", {}).get("trust")
+
+    return {
+        "total_scans": len(st.session_state.analysis_history),
+        "website_scans": len(st.session_state.website_reports),
+        "api_scans": len(st.session_state.api_reports),
+        "image_scans": len(st.session_state.image_reports),
+        "micro_scans": len(st.session_state.micro_reports),
+        "api_risks": len(api_risks),
+        "severity_counts": severity_counts,
+        "vulnerability_counts": vulnerability_counts,
+        "category_counts": category_counts,
+        "risk_score": risk_score,
+        "latest_trust": latest_trust,
+    }
+
+
+def build_remediation_actions(limit: int = 4) -> list:
+    actions = []
+
+    for report in st.session_state.image_reports:
+        for vuln in report.get("result", {}).get("vulnerabilities", []):
+            severity = vuln.get("severity", "")
+            if severity in ["CRITICAL", "HIGH"]:
+                package = vuln.get("package") or "affected package"
+                fixed_version = vuln.get("fixed_version") or "a patched version"
+                actions.append((
+                    4 if severity == "CRITICAL" else 3,
+                    f"Update {package} in {report['image']} to {fixed_version} for {vuln.get('id', 'known vulnerability')}.",
+                ))
+
+    for report in st.session_state.website_reports:
+        for finding in report.get("result", {}).get("findings", []):
+            severity = finding.get("severity", "")
+            if severity in ["CRITICAL", "HIGH", "MEDIUM"]:
+                actions.append((
+                    {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2}.get(severity, 1),
+                    f"{finding.get('mitigation', 'Review website configuration')} for {report['url']}.",
+                ))
+
+    for report in st.session_state.api_reports:
+        for resolution in report.get("result", {}).get("resolutions", []):
+            actions.append((2, f"{resolution} on {report['url']}."))
+
+    for report in st.session_state.micro_reports:
+        for mitigation in report.get("result", {}).get("mitigations", []):
+            actions.append((2, mitigation))
+
+    if not actions:
+        return [
+            "Run a website, API, image, or microservices scan to generate prioritized fixes.",
+            "Start with public endpoints and production container images for the highest-value signal.",
+        ][:limit]
+
+    deduped = []
+    seen = set()
+    for _, text in sorted(actions, key=lambda item: item[0], reverse=True):
+        if text not in seen:
+            deduped.append(text)
+            seen.add(text)
+        if len(deduped) == limit:
+            break
+    return deduped
+
+
+def render_workspace_insights() -> None:
+    summary = summarize_security_workspace()
+    severity_counts = summary["severity_counts"]
+    vuln_counts = summary["vulnerability_counts"]
+    max_count = max([1, *severity_counts.values(), *vuln_counts.values()])
+    top_actions = build_remediation_actions(limit=3)
+    trust = summary["latest_trust"]
+    trust_copy = "No website trust verdict yet."
+    if trust:
+        trust_copy = f"Latest website verdict: {trust['verdict']} at {trust['score']}/100."
+
+    bars = ""
+    for label, count in [
+        ("Critical", severity_counts["CRITICAL"] + vuln_counts["CRITICAL"]),
+        ("High", severity_counts["HIGH"] + vuln_counts["HIGH"]),
+        ("Medium", severity_counts["MEDIUM"] + vuln_counts["MEDIUM"]),
+        ("Low", severity_counts["LOW"] + vuln_counts["LOW"]),
+    ]:
+        width = max(4, int((count / max_count) * 100)) if count else 0
+        bars += f"""
+            <div class="mini-bar-row">
+                <div class="mini-bar-label">{label}</div>
+                <div class="mini-bar-track"><div class="mini-bar-fill" style="--width:{width}%"></div></div>
+                <div class="mini-bar-value">{count}</div>
+            </div>
+        """
+
+    actions = "".join(
+        f"""
+        <div class="action-item">
+            <span class="action-rank">{index}</span>
+            <div class="action-text">{escape(action)}</div>
+        </div>
+        """
+        for index, action in enumerate(top_actions, start=1)
+    )
+
+    st.markdown(
+        f"""
+        <div class="insight-grid">
+            <div class="insight-panel">
+                <div class="insight-label">Workspace Risk</div>
+                <div class="risk-score">
+                    <div class="risk-ring" style="--score:{summary['risk_score']}">{summary['risk_score']}</div>
+                    <p class="risk-summary">{escape(trust_copy)} {summary['api_risks']} API risk notes detected this session.</p>
+                </div>
+            </div>
+            <div class="insight-panel">
+                <div class="insight-label">Finding Mix</div>
+                <div class="mini-bars">{bars}</div>
+            </div>
+            <div class="insight-panel">
+                <div class="insight-label">Next Best Actions</div>
+                <div class="action-list">{actions}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def security_bot_reply(prompt: str) -> str:
+    prompt_lower = prompt.lower()
+    summary = summarize_security_workspace()
+
+    if not prompt.strip():
+        return "Ask me about your scan results, website trust, API risk, container vulnerabilities, or remediation priorities."
+
+    if any(word in prompt_lower for word in ["summary", "status", "overview", "report"]):
+        trust = summary["latest_trust"]
+        trust_sentence = f" Latest website trust is {trust['verdict']} at {trust['score']}/100." if trust else ""
+        return (
+            f"Workspace summary: {summary['total_scans']} scans completed. "
+            f"Coverage includes {summary['website_scans']} website, {summary['api_scans']} API, "
+            f"{summary['image_scans']} image, and {summary['micro_scans']} microservices scans. "
+            f"Current workspace risk score is {summary['risk_score']}/100. "
+            f"Open risks include {summary['api_risks']} API risk notes, "
+            f"{summary['severity_counts']['MEDIUM']} medium configuration findings, and "
+            f"{summary['vulnerability_counts']['CRITICAL']} critical container vulnerabilities.{trust_sentence}"
+        )
+
+    if any(word in prompt_lower for word in ["trust", "trusted", "website", "site"]):
+        if not st.session_state.website_reports:
+            return "Run a Website scan first. I can then explain the trust verdict, score, and the signals affecting it."
+        latest = st.session_state.website_reports[-1]
+        trust = latest.get('result', {}).get('trust')
+        if not trust:
+            return "The latest Website scan does not include a trust verdict. Enable the Trust Verdict option and scan again."
+        reasons = " ".join(trust.get("reasons", []))
+        return (
+            f"The latest website scan for {latest['url']} is marked {trust['verdict']} "
+            f"with a score of {trust['score']}/100. {trust['summary']} {reasons}"
+        )
+
+    if any(word in prompt_lower for word in ["fix", "mitigate", "remediate", "priority", "next"]):
+        actions = build_remediation_actions(limit=4)
+        return "Recommended priority: " + " ".join(f"{index}. {action}" for index, action in enumerate(actions, start=1))
+
+    if any(word in prompt_lower for word in ["api", "endpoint", "header"]):
+        if not st.session_state.api_reports:
+            return "Run an API scan first. I can then review status codes, missing headers, and sensitive response indicators."
+        latest = st.session_state.api_reports[-1]
+        risks = latest.get('result', {}).get('risks', [])
+        if not risks:
+            return f"The latest API scan for {latest['url']} did not detect security risks in the current checks."
+        return f"The latest API scan found: {'; '.join(risks[:4])}. Start by adding missing defensive headers and removing sensitive data from responses."
+
+    if any(word in prompt_lower for word in ["image", "container", "trivy", "vulnerability"]):
+        if not st.session_state.image_reports:
+            return "Run an Image scan first. I can then summarize vulnerable packages and update priorities."
+        counts = summary["vulnerability_counts"]
+        return (
+            f"Container vulnerability counts: critical {counts['CRITICAL']}, high {counts['HIGH']}, "
+            f"medium {counts['MEDIUM']}, low {counts['LOW']}. Update the base image, patch packages with fixed versions, "
+            "and prefer minimal images for production workloads."
+        )
+
+    if any(word in prompt_lower for word in ["kubernetes", "micro", "pod", "rbac", "cluster"]):
+        if not st.session_state.micro_reports:
+            return "Run a Microservices scan first. I can then summarize RBAC, network policy, and workload hardening findings."
+        latest = st.session_state.micro_reports[-1]
+        findings = latest.get("result", {}).get("findings", [])
+        categories = Counter(f.get("category", "General") for f in findings)
+        return (
+            f"Latest microservices scan has {len(findings)} findings across "
+            f"{', '.join(categories.keys()) or 'general hardening'}. Focus on least-privilege RBAC, "
+            "network policies, non-root containers, restricted capabilities, and clear namespace boundaries."
+        )
+
+    return (
+        "I can help with scan summaries, website trust verdicts, remediation priorities, API risks, "
+        "container vulnerabilities, and Kubernetes hardening. Try asking: 'What should I fix first?'"
+    )
+
+
+def render_bot_popup() -> None:
+    summary = summarize_security_workspace()
+    st.markdown(
+        f"""
+        <details class="bot-popup" open>
+            <summary>CyberShield Bot</summary>
+            <div class="bot-popup-body">
+                <div class="bot-popup-title">Need help reviewing security posture?</div>
+                <p class="bot-popup-copy">
+                    I can summarize scans, explain website trust verdicts, and recommend what to fix first.
+                    Current workspace: {summary['total_scans']} scans completed.
+                </p>
+                <div class="bot-popup-hint">Open the Security Bot tab to chat with me.</div>
+            </div>
+        </details>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_chat_message(role: str, content: str) -> None:
+    label = "You" if role == "user" else "CyberShield Bot"
+    css_role = "user" if role == "user" else "assistant"
+    st.markdown(
+        f"""
+        <div class="bot-message {css_role}">
+            <div class="bot-message-label">{label}</div>
+            <p class="bot-message-text">{escape(content)}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -710,6 +1293,9 @@ metric_2.metric("Assessment Areas", "4")
 metric_3.metric("Report Format", "Markdown")
 metric_4.metric("Engine", "Trivy")
 
+render_workspace_insights()
+render_bot_popup()
+
 # ============================================================
 # NAVIGATION TABS
 # ============================================================
@@ -718,6 +1304,7 @@ tab_names = [
     "API",
     "Images",
     "Microservices",
+    "Security Bot",
     "Reports",
     "History"
 ]
@@ -820,10 +1407,11 @@ with tabs[0]:
             if findings:
                 with st.expander(f"View All {len(findings)} Findings"):
                     for f in findings:
-                        sev = {'CRITICAL': '🔴', 'HIGH': '🟠', 'MEDIUM': '🟡', 'LOW': '🟢'}.get(f['severity'], '⚪')
-                        st.markdown(f"**{sev} {f['severity']}** — {f['category']}")
-                        st.markdown(f"*{f['issue']}* - {f['mitigation']}")
-                        st.markdown("---")
+                        render_finding_row(
+                            f["severity"],
+                            f"{f['category']}: {f['issue']}",
+                            f["mitigation"],
+                        )
         else:
             st.warning("Enter a website URL")
 
@@ -961,10 +1549,11 @@ with tabs[2]:
                 if vulns:
                     with st.expander("View Top 10 Vulnerabilities"):
                         for v in vulns[:10]:
-                            sev = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}.get(v['severity'], "⚪")
-                            st.markdown(f"**{sev} {v['id']}** ({v['severity']})")
-                            st.markdown(f"Package: `{v['package']}` | Fix: `{v.get('fixed_version', 'N/A')}`")
-                            st.markdown("---")
+                            render_finding_row(
+                                v["severity"],
+                                v["id"],
+                                f"Package: {v['package']} | Fix: {v.get('fixed_version', 'N/A')}",
+                            )
         else:
             st.warning("Enter image name")
 
@@ -1046,9 +1635,58 @@ with tabs[3]:
                 st.success(mit)
 
 # ============================================================
-# TAB 5: REPORTS
+# TAB 5: SECURITY BOT
 # ============================================================
 with tabs[4]:
+    render_section(
+        "Guided Security Assistant",
+        "Security Bot",
+        "Ask for scan summaries, trust verdict explanations, remediation priorities, and hardening guidance.",
+    )
+
+    if not st.session_state.bot_messages:
+        st.session_state.bot_messages.append({
+            "role": "assistant",
+            "content": "Hello. I can help interpret CyberShield scan results and recommend what to fix first."
+        })
+
+    prompt_col, action_col = st.columns([4, 1])
+    with prompt_col:
+        bot_prompt = st.text_input(
+            "Ask CyberShield Bot",
+            placeholder="Example: What should I fix first?",
+            key="bot_prompt",
+        )
+    with action_col:
+        st.markdown("<br>", unsafe_allow_html=True)
+        send_bot_message = st.button("Ask Bot", key="bot_btn")
+
+    quick_1, quick_2, quick_3 = st.columns(3)
+    with quick_1:
+        if st.button("Summarize Workspace", key="bot_summary"):
+            bot_prompt = "summary"
+            send_bot_message = True
+    with quick_2:
+        if st.button("Website Trust", key="bot_trust"):
+            bot_prompt = "website trust"
+            send_bot_message = True
+    with quick_3:
+        if st.button("Fix Priorities", key="bot_priorities"):
+            bot_prompt = "fix priorities"
+            send_bot_message = True
+
+    if send_bot_message:
+        st.session_state.bot_messages.append({"role": "user", "content": bot_prompt})
+        st.session_state.bot_messages.append({"role": "assistant", "content": security_bot_reply(bot_prompt)})
+
+    st.markdown("---")
+    for message in st.session_state.bot_messages[-8:]:
+        render_chat_message(message["role"], message["content"])
+
+# ============================================================
+# TAB 6: REPORTS
+# ============================================================
+with tabs[5]:
     render_section(
         "Executive Reporting",
         "Security Reports",
@@ -1099,9 +1737,9 @@ with tabs[4]:
                 f"cybershield_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md", "text/markdown")
 
 # ============================================================
-# TAB 6: HISTORY
+# TAB 7: HISTORY
 # ============================================================
-with tabs[5]:
+with tabs[6]:
     render_section(
         "Audit Trail",
         "Analysis History",
