@@ -25,6 +25,9 @@ Thumbs.db
 .streamlit/
 *.log
 
+# Local security tools
+.bin/
+
 # Environment
 .env
 .env.local
