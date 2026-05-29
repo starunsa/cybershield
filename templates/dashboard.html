@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberShield Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>CyberShield</span>
+            </div>
+
+            <ul class="navbar-menu">
+                <li><a href="#dashboard" class="nav-link active" data-tab="dashboard">
+                    <i class="fas fa-home"></i> Dashboard
+                </a></li>
+                <li><a href="#chat" class="nav-link" data-tab="chat">
+                    <i class="fas fa-comments"></i> Security Chat
+                </a></li>
+                <li><a href="#security" class="nav-link" data-tab="security">
+                    <i class="fas fa-lock"></i> Analysis
+                </a></li>
+                <li><a href="#profile" class="nav-link" data-tab="profile">
+                    <i class="fas fa-user"></i> Profile
+                </a></li>
+                <li><a href="#" id="logoutBtn" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="user-card">
+                <div class="user-avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-info">
+                    <h3 id="userDisplayName">User</h3>
+                    <p id="userEmail">user@example.com</p>
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                <h4>Quick Access</h4>
+                <ul>
+                    <li><a href="#" class="sidebar-link" data-action="new-chat">
+                        <i class="fas fa-plus-circle"></i> New Chat
+                    </a></li>
+                    <li><a href="#" class="sidebar-link" data-action="chat-history">
+                        <i class="fas fa-history"></i> Chat History
+                    </a></li>
+                    <li><a href="#" class="sidebar-link" data-action="api-scan">
+                        <i class="fas fa-network-wired"></i> Scan API
+                    </a></li>
+                    <li><a href="#" class="sidebar-link" data-action="image-scan">
+                        <i class="fas fa-cube"></i> Scan Image
+                    </a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-menu">
+                <h4>Recent Chats</h4>
+                <div id="recentChats" class="recent-list"></div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Dashboard Tab -->
+            <div class="tab-content" id="dashboard">
+                <div class="welcome-banner">
+                    <h1>Welcome to CyberShield</h1>
+                    <p>Your Comprehensive Security Operations Platform</p>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-comments"></i>
+                            <h3>Security Chat</h3>
+                        </div>
+                        <p>Chat with CyberGuard AI to analyze security requirements and get expert recommendations.</p>
+                        <button class="btn btn-primary" onclick="switchTab('chat')">
+                            <i class="fas fa-arrow-right"></i> Start Chat
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-network-wired"></i>
+                            <h3>API Analysis</h3>
+                        </div>
+                        <p>Analyze your APIs for security vulnerabilities and configuration issues.</p>
+                        <button class="btn btn-primary" onclick="switchTab('security')">
+                            <i class="fas fa-arrow-right"></i> Analyze API
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-cube"></i>
+                            <h3>Image Scanning</h3>
+                        </div>
+                        <p>Scan container images for vulnerabilities using Trivy technology.</p>
+                        <button class="btn btn-primary" onclick="switchTab('security')">
+                            <i class="fas fa-arrow-right"></i> Scan Image
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-file-pdf"></i>
+                            <h3>Report Generation</h3>
+                        </div>
+                        <p>Generate comprehensive security reports for compliance and documentation.</p>
+                        <button class="btn btn-primary" onclick="switchTab('security')">
+                            <i class="fas fa-arrow-right"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Tab -->
+            <div class="tab-content" id="chat" style="display: none;">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <h2><i class="fas fa-comments"></i> Security Chat - CyberGuard AI</h2>
+                        <p id="chatBotInfo">Bot: <strong id="botName">CyberGuard</strong> | Chatting as: <strong id="chatUsername"></strong></p>
+                    </div>
+
+                    <div class="chat-messages" id="chatMessages"></div>
+
+                    <div class="chat-input-area">
+                        <form id="chatForm" onsubmit="sendChatMessage(event)">
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    id="chatInput" 
+                                    placeholder="Type your security question or requirement..."
+                                    autocomplete="off"
+                                    required
+                                >
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Send
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Analysis Tab -->
+            <div class="tab-content" id="security" style="display: none;">
+                <div class="security-container">
+                    <h2><i class="fas fa-lock"></i> Security Analysis</h2>
+
+                    <div class="analysis-tabs">
+                        <button class="analysis-tab-btn active" data-analysis="api">
+                            <i class="fas fa-network-wired"></i> API Analysis
+                        </button>
+                        <button class="analysis-tab-btn" data-analysis="image">
+                            <i class="fas fa-cube"></i> Image Scanning
+                        </button>
+                        <button class="analysis-tab-btn" data-analysis="report">
+                            <i class="fas fa-file-alt"></i> Generate Report
+                        </button>
+                    </div>
+
+                    <!-- API Analysis -->
+                    <div class="analysis-content" id="api-analysis">
+                        <h3>API Security Analysis</h3>
+                        <form id="apiForm" onsubmit="analyzeAPI(event)">
+                            <div class="form-group">
+                                <label>API Endpoint URL</label>
+                                <input type="url" id="apiUrl" placeholder="https://api.example.com/endpoint" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Method</label>
+                                    <select id="apiMethod">
+                                        <option>GET</option>
+                                        <option>POST</option>
+                                        <option>PUT</option>
+                                        <option>DELETE</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Analyze API
+                            </button>
+                        </form>
+                        <div id="apiResults" class="results-container"></div>
+                    </div>
+
+                    <!-- Image Scanning -->
+                    <div class="analysis-content" id="image-analysis" style="display: none;">
+                        <h3>Container Image Scanning</h3>
+                        <form id="imageForm" onsubmit="scanImage(event)">
+                            <div class="form-group">
+                                <label>Container Image Name</label>
+                                <input type="text" id="imageName" placeholder="nginx:latest or myapp:1.0" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Scan Image
+                            </button>
+                        </form>
+                        <div id="imageResults" class="results-container"></div>
+                    </div>
+
+                    <!-- Report Generation -->
+                    <div class="analysis-content" id="report-analysis" style="display: none;">
+                        <h3>Generate Security Report</h3>
+                        <form id="reportForm" onsubmit="generateReport(event)">
+                            <div class="form-group">
+                                <label>API URLs (comma-separated)</label>
+                                <textarea id="reportApis" placeholder="https://api1.example.com/endpoint, https://api2.example.com/endpoint"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Container Images (comma-separated)</label>
+                                <textarea id="reportImages" placeholder="nginx:latest, mysql:8.0"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-file-export"></i> Generate Report
+                            </button>
+                        </form>
+                        <div id="reportResults" class="results-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div class="tab-content" id="profile" style="display: none;">
+                <div class="profile-container">
+                    <h2><i class="fas fa-user"></i> User Profile</h2>
+
+                    <div class="profile-card">
+                        <h3>Profile Information</h3>
+                        <form id="profileForm" onsubmit="updateProfile(event)">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="profileUsername" disabled>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="profileFullName" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="profileEmail" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="profile-card">
+                        <h3>Change Password</h3>
+                        <form id="passwordForm" onsubmit="changePassword(event)">
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" id="currentPassword" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="newPassword" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Confirm Password</label>
+                                <input type="password" id="confirmPassword" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-key"></i> Update Password
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner" style="display: none;">
+        <div class="spinner-content">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
