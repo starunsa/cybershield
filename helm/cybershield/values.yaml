@@ -1,0 +1,46 @@
+replicaCount: 1
+
+image:
+  repository: starunsa/cybershield
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 5000
+  targetPort: 5000
+
+ingress:
+  enabled: false
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+env:
+  flaskEnv: production
+  corsOrigins: "*"
+  databaseUrl: "postgresql://cybershield:changeme@external-db-host:5432/cybershield"
+
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: external-db-host
+  port: 5432
+  user: cybershield
+  password: changeme
+  name: cybershield
+  sslmode: disable
+
+jwtSecretKey: "replace-with-secure-jwt-secret"
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

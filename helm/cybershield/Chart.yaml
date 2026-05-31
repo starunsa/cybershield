@@ -1,0 +1,12 @@
+apiVersion: v2
+name: cybershield
+description: CyberShield Flask security operations platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - security
+  - flask
+  - dashboard
+sources:
+  - https://github.com/starunsa/cybershield

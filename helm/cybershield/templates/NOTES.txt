@@ -1,0 +1,20 @@
+Thank you for installing CyberShield.
+
+Your application has been deployed with an external database configuration.
+This Helm chart does not create a database instance; it expects an external DB accessible via DATABASE_URL.
+
+Example external database connection string:
+  postgresql://cybershield:changeme@external-db-host:5432/cybershield
+
+To see the service endpoint:
+  export RELEASE_NAME=<release-name>
+  kubectl get svc {{ include "cybershield.fullname" . }}
+
+To override the image or database settings:
+  helm upgrade --install {{ .Release.Name }} ./helm/cybershield \
+    --set image.repository=<your-repo> \
+    --set image.tag=<your-tag> \
+    --set env.databaseUrl="postgresql://user:password@host:5432/dbname" \
+    --set jwtSecretKey=<secure-secret>
+
+Remember to set a secure JWT secret in values or via a sealed/managed secret in your cluster.
