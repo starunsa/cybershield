@@ -54,12 +54,6 @@
             <div class="sidebar-menu">
                 <h4>Quick Access</h4>
                 <ul>
-                    <li><a href="#" class="sidebar-link" data-action="new-chat">
-                        <i class="fas fa-plus-circle"></i> New Chat
-                    </a></li>
-                    <li><a href="#" class="sidebar-link" data-action="chat-history">
-                        <i class="fas fa-history"></i> Chat History
-                    </a></li>
                     <li><a href="#" class="sidebar-link" data-action="api-scan">
                         <i class="fas fa-network-wired"></i> Scan API
                     </a></li>
@@ -88,15 +82,17 @@
                 </div>
 
                 <div class="dashboard-grid">
-                    <div class="card">
+                    <div class="card ai-guidance-card">
                         <div class="card-header">
-                            <i class="fas fa-comments"></i>
-                            <h3>Security Chat</h3>
+                            <i class="fas fa-robot"></i>
+                            <h3>AI Security Guidance</h3>
                         </div>
-                        <p>Chat with CyberGuard AI to analyze security requirements and get expert recommendations.</p>
-                        <button class="btn btn-primary" onclick="openChatWidget(true)">
-                            <i class="fas fa-arrow-right"></i> Start Chat
-                        </button>
+                        <p>CyberGuard automatically suggests the next best security actions and highlights common security mistakes.</p>
+                        <ul class="ai-suggestion-list">
+                            <li><strong>Do:</strong> scan APIs, validate HTTPS, and enforce secure headers.</li>
+                            <li><strong>Do:</strong> review container image vulnerabilities and update dependencies.</li>
+                            <li><strong>Don't:</strong> expose secrets, reuse default credentials, or ignore failed scans.</li>
+                        </ul>
                     </div>
 
                     <div class="card">
@@ -331,6 +327,16 @@
                 <button type="button" class="chat-close-btn" id="chatCloseBtn" aria-label="Close CyberGuard chat">
                     <i class="fas fa-times"></i>
                 </button>
+            </div>
+
+            <div class="chat-suggestions">
+                <h3>AI Suggestions</h3>
+                <p>Ask CyberGuard for guidance on what to scan and what to avoid. Use these prompts to get started:</p>
+                <ul>
+                    <li>What should I scan first for my web application?</li>
+                    <li>How can I harden API security and avoid common mistakes?</li>
+                    <li>Show me what not to do with exposed credentials and weak auth.</li>
+                </ul>
             </div>
 
             <div class="chat-messages" id="chatMessages"></div>

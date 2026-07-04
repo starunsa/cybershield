@@ -263,6 +263,50 @@
     margin-bottom: 15px;
 }
 
+.ai-suggestion-list {
+    list-style: disc inside;
+    color: var(--dark);
+    margin: 0;
+    padding-left: 18px;
+    font-size: 14px;
+}
+
+.ai-suggestion-list li {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.chat-suggestions {
+    border-bottom: 1px solid var(--border-color);
+    padding: 16px 20px;
+    background: #f5f8ff;
+}
+
+.chat-suggestions h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: var(--dark);
+}
+
+.chat-suggestions p {
+    margin: 0 0 10px 0;
+    color: var(--gray);
+    font-size: 14px;
+}
+
+.chat-suggestions ul {
+    list-style: disc inside;
+    margin: 0;
+    padding-left: 18px;
+    color: var(--dark);
+    font-size: 14px;
+}
+
+.chat-suggestions ul li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
 /* ==================== CHAT CONTAINER ==================== */
 
 .chat-container {

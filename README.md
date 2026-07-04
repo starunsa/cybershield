@@ -86,10 +86,10 @@ Example values in `.env`:
 ```env
 FLASK_ENV=development
 DEBUG=True
-PORT=5000
+PORT=5003
 DATABASE_URL=sqlite:///instance/cybershield.db
 JWT_SECRET_KEY=change-this-in-production
-CORS_ORIGINS=http://localhost:5000
+CORS_ORIGINS=http://localhost:5003
 ```
 
 ## 🚀 Running the Application
