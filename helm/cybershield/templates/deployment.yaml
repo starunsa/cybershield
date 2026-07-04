@@ -5,7 +5,9 @@ metadata:
   labels:
     {{- include "cybershield.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "cybershield.selectorLabels" . | nindent 6 }}
@@ -13,38 +15,74 @@ spec:
     metadata:
       labels:
         {{- include "cybershield.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      serviceAccountName: {{ include "cybershield.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.service.targetPort }}
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
           env:
-            - name: FLASK_ENV
-              value: "{{ .Values.env.flaskEnv }}"
-            - name: PORT
-              value: "{{ .Values.service.targetPort }}"
-            - name: DATABASE_URL
-              value: "{{ .Values.env.databaseUrl }}"
-            - name: JWT_SECRET_KEY
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $_ := .Values.secretEnv }}
+            - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "cybershield.secretName" . }}
-                  key: jwtSecretKey
-            - name: CORS_ORIGINS
-              value: "{{ .Values.env.corsOrigins }}"
-          readinessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: 10
-            periodSeconds: 10
+                  name: {{ include "cybershield.fullname" $ }}
+                  key: {{ $key }}
+            {{- end }}
           livenessProbe:
             httpGet:
-              path: /
-              port: {{ .Values.service.targetPort }}
-            initialDelaySeconds: 20
-            periodSeconds: 20
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: instance
+              mountPath: /app/instance
           resources:
-{{ toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: instance
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "cybershield.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

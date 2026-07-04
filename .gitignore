@@ -28,6 +28,10 @@ Thumbs.db
 # Local security tools
 .bin/
 
+# Local instance and database
+instance/
+*.db
+
 # Environment
 .env
 .env.local

@@ -1,6 +1,13 @@
 /* Authentication Handler */
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (new URLSearchParams(window.location.search).has('logout')) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        sessionStorage.clear();
+        window.history.replaceState({}, document.title, '/');
+    }
+
     setupEventListeners();
 });
 

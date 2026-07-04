@@ -30,7 +30,7 @@
                 <li><a href="#profile" class="nav-link" data-tab="profile">
                     <i class="fas fa-user"></i> Profile
                 </a></li>
-                <li><a href="#" id="logoutBtn" class="nav-link logout">
+                <li><a href="#" id="logoutBtn" class="nav-link logout" onclick="logout(event)">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a></li>
             </ul>
@@ -66,6 +66,9 @@
                     <li><a href="#" class="sidebar-link" data-action="image-scan">
                         <i class="fas fa-cube"></i> Scan Image
                     </a></li>
+                    <li><a href="#" class="sidebar-link" data-action="website-scan">
+                        <i class="fas fa-globe"></i> Scan Website
+                    </a></li>
                 </ul>
             </div>
 
@@ -91,7 +94,7 @@
                             <h3>Security Chat</h3>
                         </div>
                         <p>Chat with CyberGuard AI to analyze security requirements and get expert recommendations.</p>
-                        <button class="btn btn-primary" onclick="switchTab('chat')">
+                        <button class="btn btn-primary" onclick="openChatWidget(true)">
                             <i class="fas fa-arrow-right"></i> Start Chat
                         </button>
                     </div>
@@ -120,6 +123,17 @@
 
                     <div class="card">
                         <div class="card-header">
+                            <i class="fas fa-globe"></i>
+                            <h3>Website Scanning</h3>
+                        </div>
+                        <p>Scan websites for HTTPS, security headers, and common web application risks.</p>
+                        <button class="btn btn-primary" onclick="switchTab('security'); activateAnalysisTab('website')">
+                            <i class="fas fa-arrow-right"></i> Scan Website
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
                             <i class="fas fa-file-pdf"></i>
                             <h3>Report Generation</h3>
                         </div>
@@ -127,35 +141,6 @@
                         <button class="btn btn-primary" onclick="switchTab('security')">
                             <i class="fas fa-arrow-right"></i> Generate Report
                         </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Chat Tab -->
-            <div class="tab-content" id="chat" style="display: none;">
-                <div class="chat-container">
-                    <div class="chat-header">
-                        <h2><i class="fas fa-comments"></i> Security Chat - CyberGuard AI</h2>
-                        <p id="chatBotInfo">Bot: <strong id="botName">CyberGuard</strong> | Chatting as: <strong id="chatUsername"></strong></p>
-                    </div>
-
-                    <div class="chat-messages" id="chatMessages"></div>
-
-                    <div class="chat-input-area">
-                        <form id="chatForm" onsubmit="sendChatMessage(event)">
-                            <div class="input-group">
-                                <input 
-                                    type="text" 
-                                    id="chatInput" 
-                                    placeholder="Type your security question or requirement..."
-                                    autocomplete="off"
-                                    required
-                                >
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-paper-plane"></i> Send
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             </div>
@@ -172,13 +157,16 @@
                         <button class="analysis-tab-btn" data-analysis="image">
                             <i class="fas fa-cube"></i> Image Scanning
                         </button>
+                        <button class="analysis-tab-btn" data-analysis="website">
+                            <i class="fas fa-globe"></i> Website Scanning
+                        </button>
                         <button class="analysis-tab-btn" data-analysis="report">
                             <i class="fas fa-file-alt"></i> Generate Report
                         </button>
                     </div>
 
                     <!-- API Analysis -->
-                    <div class="analysis-content" id="api-analysis">
+                    <div class="analysis-content active" id="api-analysis">
                         <h3>API Security Analysis</h3>
                         <form id="apiForm" onsubmit="analyzeAPI(event)">
                             <div class="form-group">
@@ -206,7 +194,7 @@
                     </div>
 
                     <!-- Image Scanning -->
-                    <div class="analysis-content" id="image-analysis" style="display: none;">
+                    <div class="analysis-content" id="image-analysis">
                         <h3>Container Image Scanning</h3>
                         <form id="imageForm" onsubmit="scanImage(event)">
                             <div class="form-group">
@@ -221,8 +209,24 @@
                         <div id="imageResults" class="results-container"></div>
                     </div>
 
+                    <!-- Website Scanning -->
+                    <div class="analysis-content" id="website-analysis">
+                        <h3>Website Security Scanning</h3>
+                        <form id="websiteForm" onsubmit="scanWebsite(event)">
+                            <div class="form-group">
+                                <label>Website URL</label>
+                                <input type="url" id="websiteUrl" placeholder="https://example.com" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Scan Website
+                            </button>
+                        </form>
+                        <div id="websiteResults" class="results-container"></div>
+                    </div>
+
                     <!-- Report Generation -->
-                    <div class="analysis-content" id="report-analysis" style="display: none;">
+                    <div class="analysis-content" id="report-analysis">
                         <h3>Generate Security Report</h3>
                         <form id="reportForm" onsubmit="generateReport(event)">
                             <div class="form-group">
@@ -233,6 +237,11 @@
                             <div class="form-group">
                                 <label>Container Images (comma-separated)</label>
                                 <textarea id="reportImages" placeholder="nginx:latest, mysql:8.0"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Website URLs (comma-separated)</label>
+                                <textarea id="reportWebsites" placeholder="https://example.com, https://app.example.com"></textarea>
                             </div>
 
                             <button type="submit" class="btn btn-primary">
@@ -301,6 +310,54 @@
         </main>
     </div>
 
+    <!-- Floating CyberGuard Assistant -->
+    <div class="floating-chat" id="floatingChat">
+        <div class="chat-welcome" id="chatWelcome">
+            <strong>CyberGuard is online</strong>
+            <span>Open the shield when you want help choosing a scan.</span>
+        </div>
+
+        <section class="chat-panel" id="chatPanel" aria-label="CyberGuard chat assistant">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <div class="chat-title-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div>
+                        <h2>CyberGuard</h2>
+                        <p id="chatBotInfo">Security assistant for <strong id="chatUsername"></strong></p>
+                    </div>
+                </div>
+                <button type="button" class="chat-close-btn" id="chatCloseBtn" aria-label="Close CyberGuard chat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages"></div>
+
+            <div class="chat-input-area">
+                <form id="chatForm" onsubmit="sendChatMessage(event)">
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            id="chatInput"
+                            placeholder="Ask CyberGuard what to scan..."
+                            autocomplete="off"
+                            required
+                        >
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <button type="button" class="chat-launcher" id="chatLauncher" aria-label="Open CyberGuard chat">
+            <i class="fas fa-shield-alt"></i>
+        </button>
+    </div>
+
     <!-- Loading Spinner -->
     <div id="loadingSpinner" class="spinner" style="display: none;">
         <div class="spinner-content">
@@ -312,6 +369,6 @@
     <!-- Toast Notifications -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=20260529-5"></script>
 </body>
 </html>

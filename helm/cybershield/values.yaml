@@ -1,46 +1,69 @@
 replicaCount: 1
 
 image:
-  repository: starunsa/cybershield
-  tag: latest
+  repository: cybershield
   pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
 
 service:
   type: ClusterIP
-  port: 5000
+  port: 80
   targetPort: 5000
 
 ingress:
   enabled: false
+  className: ""
   annotations: {}
   hosts:
-    - host: chart-example.local
+    - host: cybershield.local
       paths:
         - path: /
           pathType: Prefix
   tls: []
 
 env:
-  flaskEnv: production
-  corsOrigins: "*"
-  databaseUrl: "postgresql://cybershield:changeme@external-db-host:5432/cybershield"
+  FLASK_ENV: production
+  DEBUG: "False"
+  PORT: "5000"
+  DATABASE_URL: sqlite:////app/instance/cybershield.db
 
-externalDatabase:
+secretEnv:
+  JWT_SECRET_KEY: change-this-in-production
+
+persistence:
   enabled: true
-  type: postgresql
-  host: external-db-host
-  port: 5432
-  user: cybershield
-  password: changeme
-  name: cybershield
-  sslmode: disable
-
-jwtSecretKey: "replace-with-secure-jwt-secret"
+  size: 1Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
 
 resources: {}
 
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}

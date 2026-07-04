@@ -8,6 +8,7 @@ from src.models import User, ChatSession, ChatMessage, db
 from src.chatbot import ChatbotService
 from src.security_agent.main import SecurityAgent
 from src.web_scanner import WebScanner
+from urllib.parse import urlparse
 from datetime import datetime
 
 # Create blueprints
@@ -20,6 +21,20 @@ user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 chatbot_service = ChatbotService()
 security_agent = SecurityAgent()
 web_scanner = WebScanner()
+
+
+def _is_valid_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+        return bool(parsed.scheme in ('http', 'https') and parsed.netloc)
+    except Exception:
+        return False
+
+
+def _normalize_url(value: str) -> str:
+    if value and not urlparse(value).scheme:
+        return f'https://{value}'
+    return value
 
 
 # ==================== AUTH ROUTES ====================
@@ -100,11 +115,13 @@ def send_message():
     user_message = data.get('message')
     session_id = data.get('session_id')
     
-    # Get or create session
+    # Get or create session. If the browser sends a stale session id, recover with a new session.
     if session_id:
-        session = ChatSession.query.get(session_id)
+        session = db.session.get(ChatSession, session_id)
         if not session or session.user_id != user.id:
-            return jsonify({'error': 'Invalid session'}), 403
+            session = ChatSession(user_id=user.id, title='Chat Session')
+            db.session.add(session)
+            db.session.commit()
     else:
         session = ChatSession(user_id=user.id, title='Chat Session')
         db.session.add(session)
@@ -136,7 +153,7 @@ def send_message():
 def get_chat_history(session_id):
     """Get chat history for a session"""
     user = AuthService.get_current_user()
-    session = ChatSession.query.get(session_id)
+    session = db.session.get(ChatSession, session_id)
     
     if not session or session.user_id != user.id:
         return jsonify({'error': 'Invalid session'}), 403
@@ -162,6 +179,22 @@ def get_sessions():
     }), 200
 
 
+@chat_bp.route('/session/<int:session_id>', methods=['DELETE'])
+@require_auth
+def delete_session(session_id):
+    """Delete a chat session and its messages"""
+    user = AuthService.get_current_user()
+    session = db.session.get(ChatSession, session_id)
+
+    if not session or session.user_id != user.id:
+        return jsonify({'error': 'Invalid session'}), 404
+
+    db.session.delete(session)
+    db.session.commit()
+
+    return jsonify({'message': 'Chat session ended'}), 200
+
+
 # ==================== SECURITY ROUTES ====================
 
 @security_bp.route('/analyze-api', methods=['POST'])
@@ -169,15 +202,21 @@ def get_sessions():
 def analyze_api():
     """Analyze API for security threats"""
     data = request.get_json()
-    
+
     if not data or 'url' not in data:
         return jsonify({'error': 'URL required'}), 400
-    
-    api_url = data.get('url')
-    method = data.get('method', 'GET')
-    headers = data.get('headers', {})
-    payload = data.get('payload', {})
-    
+
+    api_url = _normalize_url(data.get('url', '').strip())
+    if not api_url or not _is_valid_url(api_url):
+        return jsonify({'error': 'A valid API URL is required'}), 400
+
+    method = data.get('method', 'GET').upper()
+    headers = data.get('headers', {}) or {}
+    payload = data.get('payload', {}) or {}
+
+    if method not in ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'):
+        return jsonify({'error': 'Invalid HTTP method'}), 400
+
     try:
         report = security_agent.analyze_api(api_url, method=method, headers=headers, data=payload)
         return jsonify({
@@ -185,7 +224,7 @@ def analyze_api():
             'report': report
         }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'API analysis failed', 'details': str(e)}), 500
 
 
 @security_bp.route('/scan-image', methods=['POST'])
@@ -193,12 +232,14 @@ def analyze_api():
 def scan_image():
     """Scan container image for vulnerabilities"""
     data = request.get_json()
-    
+
     if not data or 'image' not in data:
         return jsonify({'error': 'Image name required'}), 400
-    
-    image_name = data.get('image')
-    
+
+    image_name = data.get('image', '').strip()
+    if not image_name:
+        return jsonify({'error': 'A valid image name is required'}), 400
+
     try:
         report = security_agent.analyze_image(image_name)
         return jsonify({
@@ -206,30 +247,76 @@ def scan_image():
             'report': report
         }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Image scanning failed', 'details': str(e)}), 500
+
+
+@security_bp.route('/scan-website', methods=['POST'])
+@require_auth
+def scan_website():
+    """Scan website for security configuration issues"""
+    data = request.get_json()
+
+    if not data or 'url' not in data:
+        return jsonify({'error': 'Website URL required'}), 400
+
+    website_url = _normalize_url(data.get('url', '').strip())
+    if not website_url or not _is_valid_url(website_url):
+        return jsonify({'error': 'A valid website URL is required'}), 400
+
+    try:
+        report = web_scanner.scan_website(website_url)
+        report['recommendations'] = web_scanner.get_recommendations(report)
+        return jsonify({
+            'success': True,
+            'report': report
+        }), 200
+    except Exception as e:
+        return jsonify({'error': 'Website scan failed', 'details': str(e)}), 500
 
 
 @security_bp.route('/report', methods=['POST'])
 @require_auth
 def generate_report():
     """Generate comprehensive security report"""
-    data = request.get_json()
-    
-    api_urls = data.get('api_urls', [])
-    images = data.get('images', [])
-    
+    data = request.get_json() or {}
+
+    api_urls = [url.strip() for url in data.get('api_urls', []) if url and url.strip()]
+    images = [img.strip() for img in data.get('images', []) if img and img.strip()]
+    websites = [url.strip() for url in data.get('websites', []) if url and url.strip()]
+
+    if not api_urls and not images and not websites:
+        return jsonify({'error': 'At least one API, image, or website must be provided'}), 400
+
+    api_reports = [security_agent.analyze_api(_normalize_url(url)) for url in api_urls if _is_valid_url(_normalize_url(url))]
+    image_reports = [security_agent.analyze_image(img) for img in images]
+    website_reports = []
+
+    for url in websites:
+        normalized = _normalize_url(url)
+        if _is_valid_url(normalized):
+            website_report = web_scanner.scan_website(normalized)
+            website_report['recommendations'] = web_scanner.get_recommendations(website_report)
+            website_reports.append(website_report)
+
     try:
-        api_reports = [security_agent.analyze_api(url) for url in api_urls]
-        image_reports = [security_agent.analyze_image(img) for img in images]
-        
         report = security_agent.generate_report(api_reports, image_reports)
-        
+        if website_reports:
+            report += "\n## Website Analysis\n"
+            for site_report in website_reports:
+                report += f"### {site_report.get('url', 'Unknown')}\n"
+                report += f"Overall score: {site_report.get('overall_score', 0)}/100\n"
+                if site_report.get('recommendations'):
+                    report += "Recommendations:\n"
+                    for recommendation in site_report['recommendations']:
+                        report += f"- {recommendation}\n"
+                report += "\n"
+
         return jsonify({
             'success': True,
             'report': report
         }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Report generation failed', 'details': str(e)}), 500
 
 
 # ==================== USER ROUTES ====================

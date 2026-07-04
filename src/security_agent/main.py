@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List
 
+
 class SecurityAgent:
     def __init__(self):
         pass
@@ -16,114 +17,156 @@ class SecurityAgent:
         return shutil.which('trivy') or ''
 
     def analyze_api(self, api_url: str, method: str = 'GET', headers: Dict = None, data: Dict = None) -> Dict:
-        """
-        Analyze API for security threats.
-        Basic checks: response codes, headers, etc.
-        """
         report = {
             'url': api_url,
             'method': method,
+            'status_code': None,
             'risks': [],
-            'resolutions': []
+            'resolutions': [],
+            'headers': {}
         }
+
         try:
-            response = requests.request(method, api_url, headers=headers, json=data, timeout=10)
+            response = requests.request(method, api_url, headers=headers or {}, json=data or {}, timeout=15)
             report['status_code'] = response.status_code
-            # Check for common issues
+            report['headers'] = {k.lower(): v for k, v in response.headers.items()}
+
             if response.status_code == 200:
-                # Check if sensitive data in response
-                if 'password' in response.text.lower() or 'token' in response.text.lower():
-                    report['risks'].append('Potential sensitive data exposure')
-                    report['resolutions'].append('Ensure sensitive data is not returned in API responses')
-            # Check headers
-            if 'x-frame-options' not in response.headers:
+                content_lower = response.text.lower()
+                if 'password' in content_lower or 'token' in content_lower or 'secret' in content_lower:
+                    report['risks'].append('Potential sensitive data exposure in response body')
+                    report['resolutions'].append('Do not return credentials or secrets from API endpoints')
+
+            if 'x-frame-options' not in report['headers']:
                 report['risks'].append('Missing X-Frame-Options header')
                 report['resolutions'].append('Add X-Frame-Options header to prevent clickjacking')
-            # More checks can be added
-        except Exception as e:
-            report['error'] = str(e)
+
+            if 'x-content-type-options' not in report['headers']:
+                report['risks'].append('Missing X-Content-Type-Options header')
+                report['resolutions'].append('Add X-Content-Type-Options: nosniff')
+
+            if 'content-security-policy' not in report['headers']:
+                report['risks'].append('Missing Content-Security-Policy header')
+                report['resolutions'].append('Implement a Content-Security-Policy header')
+
+            if 'strict-transport-security' not in report['headers'] and api_url.startswith('https://'):
+                report['risks'].append('Missing Strict-Transport-Security header')
+                report['resolutions'].append('Use HSTS for HTTPS endpoints')
+
+        except requests.exceptions.RequestException as exc:
+            report['error'] = str(exc)
+        except Exception as exc:
+            report['error'] = str(exc)
+
         return report
 
     def analyze_image(self, image_name: str) -> Dict:
-        """
-        Analyze container image for vulnerabilities using Trivy.
-        """
         report = {
             'image': image_name,
             'vulnerabilities': [],
             'risks': [],
-            'resolutions': []
+            'resolutions': [],
+            'error': None
         }
         trivy = self._trivy_command()
         if not trivy:
             report['error'] = (
-                "Trivy is not installed or is not available on PATH. "
-                "Run `sh install_trivy.sh` from the project folder, then restart the app."
+                'Trivy is not installed or is not available on PATH. '
+                'Install Trivy and restart the application.'
             )
             report['resolutions'].append('Install Trivy CLI: sh install_trivy.sh')
             return report
 
         try:
-            # Run trivy scan
-            result = subprocess.run([trivy, 'image', '--format', 'json', image_name], capture_output=True, text=True)
-            if result.returncode == 0:
+            result = subprocess.run(
+                [trivy, 'image', '--quiet', '--format', 'json', image_name],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=120,
+            )
+
+            if result.stdout:
                 data = json.loads(result.stdout)
-                for vuln in data.get('Results', []):
-                    for v in vuln.get('Vulnerabilities', []):
+                for entry in data.get('Results', []):
+                    for vuln in entry.get('Vulnerabilities', []):
                         report['vulnerabilities'].append({
-                            'id': v['VulnerabilityID'],
-                            'severity': v['Severity'],
-                            'description': v.get('Description', ''),
-                            'package': v.get('PkgName', ''),
-                            'fixed_version': v.get('FixedVersion', '')
+                            'id': vuln.get('VulnerabilityID'),
+                            'severity': vuln.get('Severity'),
+                            'package': vuln.get('PkgName'),
+                            'installed_version': vuln.get('InstalledVersion'),
+                            'fixed_version': vuln.get('FixedVersion'),
+                            'title': vuln.get('Title'),
+                            'description': vuln.get('Description', ''),
                         })
-                        if v['Severity'] in ['HIGH', 'CRITICAL']:
-                            report['risks'].append(f"High severity vulnerability: {v['VulnerabilityID']}")
-                            report['resolutions'].append(f"Update {v.get('PkgName', '')} to version {v.get('FixedVersion', '')} or later")
-            else:
-                report['error'] = result.stderr
-        except Exception as e:
-            report['error'] = str(e)
+                        if vuln.get('Severity') in ('HIGH', 'CRITICAL'):
+                            report['risks'].append(f"High severity vulnerability: {vuln.get('VulnerabilityID')}")
+                            if vuln.get('FixedVersion'):
+                                report['resolutions'].append(
+                                    f"Upgrade {vuln.get('PkgName')} to {vuln.get('FixedVersion')} or newer"
+                                )
+                            else:
+                                report['resolutions'].append(
+                                    f"Investigate {vuln.get('VulnerabilityID')} and apply remediation"
+                                )
+            if result.returncode not in (0, 1) and not report['vulnerabilities']:
+                report['error'] = result.stderr.strip() or result.stdout.strip() or 'Trivy scan failed'
+
+        except subprocess.TimeoutExpired:
+            report['error'] = 'Trivy scan timed out. Please try again with a smaller image or increase the timeout.'
+        except Exception as exc:
+            report['error'] = str(exc)
+
         return report
 
     def generate_report(self, api_reports: List[Dict], image_reports: List[Dict]) -> str:
-        """
-        Generate a complete report.
-        """
-        report = "# Security Analysis Report\n\n"
-        report += "## API Analysis\n"
+        report = '# Security Analysis Report\n\n'
+        report += '## API Analysis\n\n'
+        if not api_reports:
+            report += 'No API analysis was requested.\n\n'
+
         for api_rep in api_reports:
-            report += f"### {api_rep['url']}\n"
+            report += f"### {api_rep.get('url', 'Unknown API')}\n"
             report += f"Status: {api_rep.get('status_code', 'N/A')}\n"
+            if api_rep.get('error'):
+                report += f"Error: {api_rep['error']}\n"
             if api_rep.get('risks'):
-                report += "Risks:\n"
+                report += 'Risks:\n'
                 for risk in api_rep['risks']:
                     report += f"- {risk}\n"
-                report += "Resolutions:\n"
+            if api_rep.get('resolutions'):
+                report += 'Resolutions:\n'
                 for res in api_rep['resolutions']:
                     report += f"- {res}\n"
-            report += "\n"
+            report += '\n'
 
-        report += "## Image Analysis\n"
+        report += '## Image Analysis\n\n'
+        if not image_reports:
+            report += 'No image analysis was requested.\n\n'
+
         for img_rep in image_reports:
-            report += f"### {img_rep['image']}\n"
+            report += f"### {img_rep.get('image', 'Unknown image')}\n"
+            if img_rep.get('error'):
+                report += f"Error: {img_rep['error']}\n"
             if img_rep.get('vulnerabilities'):
-                report += "Vulnerabilities:\n"
+                report += 'Vulnerabilities:\n'
                 for vuln in img_rep['vulnerabilities']:
-                    report += f"- {vuln['id']} ({vuln['severity']}): {vuln['description']}\n"
+                    report += f"- {vuln.get('id')} ({vuln.get('severity')}): {vuln.get('title', '')}\n"
             if img_rep.get('risks'):
-                report += "Risks:\n"
+                report += 'Risks:\n'
                 for risk in img_rep['risks']:
                     report += f"- {risk}\n"
-                report += "Resolutions:\n"
+            if img_rep.get('resolutions'):
+                report += 'Resolutions:\n'
                 for res in img_rep['resolutions']:
                     report += f"- {res}\n"
-            report += "\n"
+            report += '\n'
+
         return report
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     agent = SecurityAgent()
-    # Example usage
     api_report = agent.analyze_api('https://httpbin.org/get')
     image_report = agent.analyze_image('alpine:latest')
     full_report = agent.generate_report([api_report], [image_report])

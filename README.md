@@ -77,13 +77,19 @@ python3
 ```
 
 ### 6. Configure Environment (Optional)
-Edit `.env` file to customize settings:
+Copy `.env.example` to `.env` and customize settings for your deployment:
+```bash
+cp .env.example .env
+```
+
+Example values in `.env`:
 ```env
 FLASK_ENV=development
 DEBUG=True
 PORT=5000
-DATABASE_URL=sqlite:///cybershield.db
+DATABASE_URL=sqlite:///instance/cybershield.db
 JWT_SECRET_KEY=change-this-in-production
+CORS_ORIGINS=http://localhost:5000
 ```
 
 ## 🚀 Running the Application
@@ -98,7 +104,16 @@ The application will be available at `http://localhost:5000`
 ### Production Mode
 ```bash
 export FLASK_ENV=production
-gunicorn -w 4 -b 0.0.0.0:5000 app:create_app()
+export PORT=5000
+export JWT_SECRET_KEY=replace-with-secure-random-secret
+gunicorn -w 4 -b 0.0.0.0:${PORT} app:create_app()
+```
+
+### Docker
+Build and run the production container:
+```bash
+docker build -t cybershield:latest .
+docker run -d -p 5000:5000 --env-file .env --name cybershield cybershield:latest
 ```
 
 ## 💻 Using the Application

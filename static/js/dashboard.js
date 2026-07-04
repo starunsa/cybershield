@@ -2,6 +2,7 @@
 
 const API_BASE_URL = '/api';
 let currentChatSessionId = null;
+let chatInitialized = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check authentication
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabNavigation();
     setupAnalysisTabs();
     setupSidebar();
+    setupFloatingChat();
 
     // Load user data
     loadUserData();
@@ -31,12 +33,19 @@ function checkAuth() {
     }
 }
 
+function handleAuthFailure(response) {
+    if (response.status === 401 || response.status === 422) {
+        logout();
+        return true;
+    }
+    return false;
+}
+
 function setupNavigation() {
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            logout();
+            logout(e);
         });
     }
 }
@@ -47,9 +56,105 @@ function setupTabNavigation() {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const tab = e.currentTarget.dataset.tab;
+            if (tab === 'chat') {
+                openChatWidget(true);
+                return;
+            }
             switchTab(tab);
         });
     });
+}
+
+function setupFloatingChat() {
+    const launcher = document.getElementById('chatLauncher');
+    const closeBtn = document.getElementById('chatCloseBtn');
+    const welcome = document.getElementById('chatWelcome');
+
+    if (launcher) {
+        launcher.addEventListener('click', () => openChatWidget(true));
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', endChatSession);
+    }
+
+    setTimeout(() => {
+        if (welcome) {
+            welcome.classList.add('show');
+        }
+    }, 900);
+
+    setTimeout(() => {
+        if (welcome) {
+            welcome.classList.remove('show');
+        }
+    }, 6500);
+}
+
+function openChatWidget(focusInput = false) {
+    const panel = document.getElementById('chatPanel');
+    const launcher = document.getElementById('chatLauncher');
+    const welcome = document.getElementById('chatWelcome');
+
+    if (panel) {
+        panel.classList.add('open');
+    }
+    if (launcher) {
+        launcher.classList.add('active');
+    }
+    if (welcome) {
+        welcome.classList.remove('show');
+    }
+    if (focusInput) {
+        setTimeout(() => {
+            const input = document.getElementById('chatInput');
+            if (input) input.focus();
+        }, 180);
+    }
+}
+
+function closeChatWidget() {
+    const panel = document.getElementById('chatPanel');
+    const launcher = document.getElementById('chatLauncher');
+
+    if (panel) {
+        panel.classList.remove('open');
+    }
+    if (launcher) {
+        launcher.classList.remove('active');
+    }
+}
+
+async function endChatSession() {
+    const sessionId = currentChatSessionId;
+    closeChatWidget();
+    currentChatSessionId = null;
+    chatInitialized = false;
+
+    const messagesContainer = document.getElementById('chatMessages');
+    if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+    }
+
+    if (!sessionId) {
+        loadChatSessions();
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API_BASE_URL}/chat/session/${sessionId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (handleAuthFailure(response)) return;
+        loadChatSessions();
+    } catch (error) {
+        console.error('Error ending chat session:', error);
+    }
 }
 
 function setupAnalysisTabs() {
@@ -66,15 +171,19 @@ function setupAnalysisTabs() {
             // Update active content
             document.querySelectorAll('.analysis-content').forEach(content => {
                 content.classList.remove('active');
+                content.style.display = 'none';
             });
-            document.getElementById(`${analysis}-analysis`).classList.add('active');
+            const activeContent = document.getElementById(`${analysis}-analysis`);
+            if (activeContent) {
+                activeContent.classList.add('active');
+                activeContent.style.display = 'block';
+            }
         });
     });
 
     // Set first tab as active
     if (analysisTabs.length > 0) {
-        analysisTabs[0].classList.add('active');
-        document.getElementById('api-analysis').classList.add('active');
+        activateAnalysisTab(analysisTabs[0].dataset.analysis);
     }
 }
 
@@ -92,13 +201,14 @@ function setupSidebar() {
 function handleSidebarAction(action) {
     switch (action) {
         case 'new-chat':
-            switchTab('chat');
+            openChatWidget(true);
             currentChatSessionId = null;
             document.getElementById('chatMessages').innerHTML = '';
+            chatInitialized = false;
             initializeChat();
             break;
         case 'chat-history':
-            switchTab('chat');
+            openChatWidget(true);
             loadChatSessions();
             break;
         case 'api-scan':
@@ -108,6 +218,10 @@ function handleSidebarAction(action) {
         case 'image-scan':
             switchTab('security');
             activateAnalysisTab('image');
+            break;
+        case 'website-scan':
+            switchTab('security');
+            activateAnalysisTab('website');
             break;
     }
 }
@@ -124,13 +238,19 @@ function switchTab(tabName) {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
     });
-    document.querySelector(`.nav-link[data-tab="${tabName}"]`).classList.add('active');
+    const activeLink = document.querySelector(`.nav-link[data-tab="${tabName}"]`);
+    if (activeLink) {
+        activeLink.classList.add('active');
+    }
 
     // Update content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.style.display = 'none';
     });
-    document.getElementById(tabName).style.display = 'block';
+    const activeTab = document.getElementById(tabName);
+    if (activeTab) {
+        activeTab.style.display = 'block';
+    }
 }
 
 async function loadUserData() {
@@ -141,6 +261,8 @@ async function loadUserData() {
                 'Authorization': `Bearer ${token}`
             }
         });
+
+        if (handleAuthFailure(response)) return;
 
         if (response.ok) {
             const data = await response.json();
@@ -167,6 +289,8 @@ async function loadChatSessions() {
             }
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             const data = await response.json();
             const sessionsList = document.getElementById('recentChats');
@@ -184,6 +308,7 @@ async function loadChatSessions() {
                 item.textContent = session.title || `Chat ${session.id}`;
                 item.addEventListener('click', (e) => {
                     e.preventDefault();
+                    openChatWidget(true);
                     loadChatHistory(session.id);
                 });
                 sessionsList.appendChild(item);
@@ -203,8 +328,10 @@ async function loadChatHistory(sessionId) {
             }
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
-            const data = response.json();
+            const data = await response.json();
             currentChatSessionId = sessionId;
 
             const messagesContainer = document.getElementById('chatMessages');
@@ -223,6 +350,8 @@ async function loadChatHistory(sessionId) {
 }
 
 async function initializeChat() {
+    if (chatInitialized) return;
+
     try {
         const token = localStorage.getItem('access_token');
         const response = await fetch(`${API_BASE_URL}/chat/greeting`, {
@@ -233,10 +362,12 @@ async function initializeChat() {
             }
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             const data = await response.json();
-            document.getElementById('botName').textContent = data.bot_name;
             displayMessage('bot', data.greeting, data.bot_name);
+            chatInitialized = true;
         }
     } catch (error) {
         console.error('Error initializing chat:', error);
@@ -271,6 +402,8 @@ async function sendChatMessage(e) {
             })
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             const data = await response.json();
             currentChatSessionId = data.session_id;
@@ -282,7 +415,7 @@ async function sendChatMessage(e) {
             loadChatSessions();
         } else {
             const error = await response.json();
-            displayMessage('bot', 'Error: ' + (error.error || 'Failed to process message'));
+            displayMessage('bot', 'Error: ' + (error.error || error.msg || 'Failed to process message'));
         }
     } catch (error) {
         console.error('Error sending message:', error);
@@ -334,12 +467,14 @@ async function analyzeAPI(e) {
             body: JSON.stringify({ url, method })
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             const data = await response.json();
             displayResults('apiResults', data.report);
         } else {
             const error = await response.json();
-            showError('apiResults', error.error);
+            showError('apiResults', error.error || error.msg || 'Failed to analyze API');
         }
     } catch (error) {
         console.error('Error analyzing API:', error);
@@ -367,16 +502,53 @@ async function scanImage(e) {
             body: JSON.stringify({ image })
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             const data = await response.json();
             displayResults('imageResults', data.report);
         } else {
             const error = await response.json();
-            showError('imageResults', error.error);
+            showError('imageResults', error.error || error.msg || 'Failed to scan image');
         }
     } catch (error) {
         console.error('Error scanning image:', error);
         showError('imageResults', error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function scanWebsite(e) {
+    e.preventDefault();
+
+    const url = document.getElementById('websiteUrl').value;
+
+    showLoading();
+
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API_BASE_URL}/security/scan-website`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url })
+        });
+
+        if (handleAuthFailure(response)) return;
+
+        if (response.ok) {
+            const data = await response.json();
+            displayResults('websiteResults', data.report);
+        } else {
+            const error = await response.json();
+            showError('websiteResults', error.error || error.msg || 'Failed to scan website');
+        }
+    } catch (error) {
+        console.error('Error scanning website:', error);
+        showError('websiteResults', error.message);
     } finally {
         hideLoading();
     }
@@ -387,9 +559,10 @@ async function generateReport(e) {
 
     const apis = document.getElementById('reportApis').value.split(',').filter(a => a.trim());
     const images = document.getElementById('reportImages').value.split(',').filter(i => i.trim());
+    const websites = document.getElementById('reportWebsites').value.split(',').filter(w => w.trim());
 
-    if (apis.length === 0 && images.length === 0) {
-        showError('reportResults', 'Please enter at least one API URL or image name');
+    if (apis.length === 0 && images.length === 0 && websites.length === 0) {
+        showError('reportResults', 'Please enter at least one API URL, image name, or website URL');
         return;
     }
 
@@ -403,15 +576,17 @@ async function generateReport(e) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ api_urls: apis, images: images })
+            body: JSON.stringify({ api_urls: apis, images: images, websites: websites })
         });
+
+        if (handleAuthFailure(response)) return;
 
         if (response.ok) {
             const data = await response.json();
             displayResults('reportResults', data.report);
         } else {
             const error = await response.json();
-            showError('reportResults', error.error);
+            showError('reportResults', error.error || error.msg || 'Failed to generate report');
         }
     } catch (error) {
         console.error('Error generating report:', error);
@@ -438,12 +613,14 @@ async function updateProfile(e) {
             body: JSON.stringify({ full_name: fullName, email })
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             showToast('Profile updated successfully', 'success');
             loadUserData();
         } else {
             const error = await response.json();
-            showToast(error.error || 'Failed to update profile', 'error');
+            showToast(error.error || error.msg || 'Failed to update profile', 'error');
         }
     } catch (error) {
         console.error('Error updating profile:', error);
@@ -474,12 +651,14 @@ async function changePassword(e) {
             body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
         });
 
+        if (handleAuthFailure(response)) return;
+
         if (response.ok) {
             showToast('Password changed successfully', 'success');
             document.getElementById('passwordForm').reset();
         } else {
             const error = await response.json();
-            showToast(error.error || 'Failed to change password', 'error');
+            showToast(error.error || error.msg || 'Failed to change password', 'error');
         }
     } catch (error) {
         console.error('Error changing password:', error);
@@ -538,8 +717,14 @@ function showToast(message, type) {
     }, 3000);
 }
 
-function logout() {
+function logout(e) {
+    if (e) {
+        e.preventDefault();
+    }
+    currentChatSessionId = null;
+    chatInitialized = false;
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
-    window.location.href = '/';
+    sessionStorage.clear();
+    window.location.replace('/?logout=1');
 }
